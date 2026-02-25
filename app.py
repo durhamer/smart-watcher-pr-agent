@@ -21,9 +21,9 @@ if st.button("🚀 啟動智囊團分析"):
             os.environ["GEMINI_API_KEY"] = api_key
             os.environ["GOOGLE_API_KEY"] = api_key
             
-            # 使用 CrewAI 內建的 LLM，並加上 gemini/ 前綴
+            # 把原本的 gemini-2.5-pro 換成 gemini-2.5-flash
             llm = LLM(
-                model="gemini/gemini-2.5-pro", 
+                model="gemini/gemini-2.5-flash", 
                 temperature=0.6,
                 api_key=api_key
             )
