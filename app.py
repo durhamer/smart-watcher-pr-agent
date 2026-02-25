@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from crewai import Agent, Task, Crew, Process
+from crewai import Agent, Task, Crew, Process, LLM
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # 網頁 UI 設定
@@ -16,14 +16,17 @@ if st.button("🚀 啟動智囊團分析"):
     # 從 Streamlit 後台抓取 API Key (為了安全，不要把 Key 寫死在程式碼裡)
     api_key = st.secrets.get("GEMINI_API_KEY")
     
-    if not api_key:
-        st.error("請先在 Streamlit Cloud 後台的 Advanced Settings 設定 GEMINI_API_KEY！")
-    else:
-        with st.spinner("Agent 團隊正在開會討論中... (大約需要 30~60 秒)"):
+    with st.spinner("Agent 團隊正在開會討論中... (大約需要 30~60 秒)"):
+            # 確保環境變數同時設定這兩個，以防萬一
+            os.environ["GEMINI_API_KEY"] = api_key
             os.environ["GOOGLE_API_KEY"] = api_key
             
-            # 初始化大腦
-            llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.6)
+            # 使用 CrewAI 內建的 LLM，並加上 gemini/ 前綴
+            llm = LLM(
+                model="gemini/gemini-2.5-pro", 
+                temperature=0.6,
+                api_key=api_key
+            )
 
             # 定義員工
             researcher = Agent(
