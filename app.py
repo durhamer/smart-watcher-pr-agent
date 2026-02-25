@@ -65,8 +65,15 @@ if st.button("🚀 啟動智囊團分析"):
                 process=Process.sequential 
             )
 
-            result = pr_crew.kickoff()
-
-            st.success("✨ 分析與草擬完成！")
-            st.subheader("📝 建議回覆草稿：")
-            st.write(result.raw) # 輸出最終結果
+            try:
+                # 執行任務
+                result = pr_crew.kickoff()
+                
+                st.success("✨ 分析與草擬完成！")
+                st.subheader("📝 建議回覆草稿：")
+                st.write(result.raw)
+                
+            except Exception as e:
+                # 自己攔截錯誤，這樣 Streamlit 就不會強制打碼了
+                st.error("🚨 API 呼叫發生錯誤！Google 伺服器回傳的真實原因如下：")
+                st.code(str(e))
