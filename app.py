@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from crewai import Agent, Task, Crew, Process, LLM
+from crewai_tools import FileReadTool
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # 網頁 UI 設定
@@ -21,12 +22,11 @@ if st.button("🚀 啟動智囊團分析"):
             os.environ["GEMINI_API_KEY"] = api_key
             os.environ["GOOGLE_API_KEY"] = api_key
             
-            # 把原本的 gemini-2.5-pro 換成 gemini-2.5-flash
-            llm = LLM(
-                model="gemini/gemini-2.5-flash", 
-                temperature=0.6,
-                api_key=api_key
-            )
+            # 初始化大腦
+            llm = LLM(model="gemini/gemini-2.5-flash", temperature=0.6, api_key=api_key)
+            
+            # 建立讀取本地檔案的工具
+            guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
 
             # 定義員工
             researcher = Agent(
@@ -39,8 +39,9 @@ if st.button("🚀 啟動智囊團分析"):
 
             pr_writer = Agent(
                 role='資深品牌公關與技術專家',
-                goal='根據分析報告，撰寫一段專業、自然且能引發共鳴的留言。',
+                goal='根據分析報告，撰寫一段專業且能引發共鳴的留言。你必須先使用工具讀取 pr_guidelines.txt，並嚴格遵守裡面的語氣與產業觀點。',
                 backstory='你是一位懂技術也懂人心的專家。留言從不推銷，而是透過客觀的總經數據或基本面分析建立權威感，語氣成熟穩重。',
+                tools=[guidelines_tool], # 👉 關鍵：把讀檔工具交給他
                 allow_delegation=False,
                 llm=llm
             )
