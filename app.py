@@ -4,6 +4,7 @@ import sys
 import re
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import FileReadTool, SerperDevTool
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # --- 1. 網頁 UI 基本設定 ---
 st.set_page_config(page_title="Smart Watcher - 社群公關智囊團", page_icon="🤖", layout="wide")
@@ -87,77 +88,114 @@ else:
 
 st.markdown("---")
 
-# --- 5. 執行核心邏輯 ---
-if st.button("🚀 啟動勾選的團隊", use_container_width=True):
-    api_key = st.secrets.get("GEMINI_API_KEY")
-    serper_api_key = st.secrets.get("SERPER_API_KEY")
-    
-    if not api_key or not serper_api_key:
-        st.error("請先在 Streamlit Cloud 後台設定 GEMINI_API_KEY 與 SERPER_API_KEY！")
-    elif len(selected_agent_keys) == 0:
-        st.warning("⚠️ 至少要打勾選擇一位成員出任務喔！")
-    else:
-        with st.spinner("Agent 團隊正在開會討論中... 請看下方幕後 Log 👇"):
-            os.environ["GEMINI_API_KEY"] = api_key
-            os.environ["GOOGLE_API_KEY"] = api_key
-            os.environ["SERPER_API_KEY"] = serper_api_key
-            
-            llm = LLM(model="gemini/gemini-2.5-flash", temperature=0.6, api_key=api_key)
-            guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
-            search_tool = SerperDevTool()
+# --- 5. 執行核心邏輯與邏輯檢查 ---
+st.markdown("---")
 
-            # 準備用來存放真正要上場的 Agent 和 Task
-            active_agents = []
-            active_tasks = []
+# 建立左右兩個按鈕
+col_check, col_run = st.columns(2)
 
-            # 根據使用者勾選的名單，動態實體化 Agent 與 Task
-            for key in selected_agent_keys:
-                config = AGENT_ROSTER[key]
+with col_check:
+    if st.button("🕵️ 先幫我檢查流水線邏輯", use_container_width=True):
+        api_key = st.secrets.get("GEMINI_API_KEY")
+        if not api_key:
+            st.error("請先設定 GEMINI_API_KEY！")
+        elif len(selected_agent_keys) == 0:
+            st.warning("⚠️ 請至少挑選一位 Agent！")
+        else:
+            with st.spinner("AI 架構師正在審查您的排班表..."):
+                os.environ["GOOGLE_API_KEY"] = api_key
+                # 召喚一個專門用來檢查邏輯的輕量級大腦
+                reviewer_llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
+
+                pipeline_str = " ➡️ ".join([AGENT_ROSTER[k]['role'] for k in selected_agent_keys])
+                roles_desc = "\n".join([f"- {AGENT_ROSTER[k]['role']}: {AGENT_ROSTER[k]['goal']}" for k in selected_agent_keys])
+
+                prompt = f"""
+                你是一位資深的 AI 系統架構師。使用者安排了一個 Multi-Agent 流水線來處理以下任務：
+                「{user_post}」
+
+                使用者安排的執行順序是：
+                {pipeline_str}
+
+                各 Agent 職責：
+                {roles_desc}
+
+                請以繁體中文，在 150 字以內評估這個順序是否合理。
+                如果邏輯完美（例如：先查資料分析，再讓公關寫作），請大力稱讚。
+                如果邏輯顛倒（例如：公關先憑空寫作，分析師才去查資料），請幽默地點出盲點（例如提醒公關會被迫通靈），並建議正確順序。
+                """
                 
-                # 決定這個 Agent 需要拿什麼工具
-                agent_tools = []
-                if config['needs_search']: agent_tools.append(search_tool)
-                if config['needs_guidelines']: agent_tools.append(guidelines_tool)
+                try:
+                    response = reviewer_llm.invoke(prompt)
+                    st.info(f"**🕵️ AI 架構師點評：**\n\n{response.content}")
+                except Exception as e:
+                    st.error("檢查時發生錯誤，請確認 API Key 是否正確。")
+
+with col_run:
+    if st.button("🚀 確認無誤，正式啟動團隊！", type="primary", use_container_width=True):
+        api_key = st.secrets.get("GEMINI_API_KEY")
+        serper_api_key = st.secrets.get("SERPER_API_KEY")
+        
+        if not api_key or not serper_api_key:
+            st.error("請先在 Streamlit Cloud 後台設定 GEMINI_API_KEY 與 SERPER_API_KEY！")
+        elif len(selected_agent_keys) == 0:
+            st.warning("⚠️ 至少要打勾選擇一位成員出任務喔！")
+        else:
+            with st.spinner("Agent 團隊正在開會討論中... 請看下方幕後 Log 👇"):
+                os.environ["GEMINI_API_KEY"] = api_key
+                os.environ["GOOGLE_API_KEY"] = api_key
+                os.environ["SERPER_API_KEY"] = serper_api_key
                 
-                # 創造 Agent
-                agent = Agent(
-                    role=config['role'],
-                    goal=config['goal'],
-                    backstory=config['backstory'],
-                    tools=agent_tools,
-                    allow_delegation=False,
-                    verbose=True,
-                    llm=llm
+                llm = LLM(model="gemini/gemini-2.5-flash", temperature=0.6, api_key=api_key)
+                guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
+                search_tool = SerperDevTool()
+
+                active_agents = []
+                active_tasks = []
+
+                for key in selected_agent_keys:
+                    config = AGENT_ROSTER[key]
+                    
+                    agent_tools = []
+                    if config['needs_search']: agent_tools.append(search_tool)
+                    if config['needs_guidelines']: agent_tools.append(guidelines_tool)
+                    
+                    agent = Agent(
+                        role=config['role'],
+                        goal=config['goal'],
+                        backstory=config['backstory'],
+                        tools=agent_tools,
+                        allow_delegation=False,
+                        verbose=True,
+                        llm=llm
+                    )
+                    active_agents.append(agent)
+                    
+                    task = Task(
+                        description=config['task_desc'].format(post=user_post),
+                        expected_output=config['expected_output'],
+                        agent=agent
+                    )
+                    active_tasks.append(task)
+
+                pr_crew = Crew(
+                    agents=active_agents,
+                    tasks=active_tasks,
+                    process=Process.sequential 
                 )
-                active_agents.append(agent)
-                
-                # 創造 Task (把使用者的貼文塞進去)
-                task = Task(
-                    description=config['task_desc'].format(post=user_post),
-                    expected_output=config['expected_output'],
-                    agent=agent
-                )
-                active_tasks.append(task)
 
-            # 將動態生成的清單丟給 Crew
-            pr_crew = Crew(
-                agents=active_agents,
-                tasks=active_tasks,
-                process=Process.sequential 
-            )
+                st.markdown("### 🧠 Agent 思考過程即時轉播")
+                log_expander = st.expander("點擊展開/收合幕後 Log", expanded=True)
+                original_stdout = sys.stdout 
+                sys.stdout = StreamToExpander(log_expander) 
 
-            st.markdown("### 🧠 Agent 思考過程即時轉播")
-            log_expander = st.expander("點擊展開/收合幕後 Log", expanded=True)
-            original_stdout = sys.stdout 
-            sys.stdout = StreamToExpander(log_expander) 
-
-            try:
-                result = pr_crew.kickoff()
-                st.success("✨ 任務完成！")
-                st.subheader("📝 最終產出：")
-                st.write(result.raw)
-            except Exception as e:
-                st.error("🚨 發生錯誤！")
-                st.code(str(e))
-            finally:
-                sys.stdout = original_stdout
+                try:
+                    result = pr_crew.kickoff()
+                    st.success("✨ 任務完成！")
+                    st.subheader("📝 最終產出：")
+                    st.write(result.raw)
+                except Exception as e:
+                    st.error("🚨 發生錯誤！")
+                    st.code(str(e))
+                finally:
+                    sys.stdout = original_stdout
