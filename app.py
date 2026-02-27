@@ -106,7 +106,7 @@ with col_check:
                 os.environ["GOOGLE_API_KEY"] = api_key
                 # 召喚一個專門用來檢查邏輯的輕量級大腦
                 reviewer_llm = ChatGoogleGenerativeAI(
-                    model="gemini-1.5-flash", 
+                    model="gemini-1.5-flash-latest", 
                     temperature=0.2,
                     api_key=api_key  # 👉 加上這行，確保它絕對拿得到金鑰
                 )
@@ -152,7 +152,7 @@ with col_run:
                 os.environ["GOOGLE_API_KEY"] = api_key
                 os.environ["SERPER_API_KEY"] = serper_api_key
                 
-                llm = LLM(model="gemini/gemini-1.5-flash", temperature=0.6, api_key=api_key)
+                llm = LLM(model="gemini/gemini-1.5-flash-latest", temperature=0.6, api_key=api_key)
                 guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
                 search_tool = SerperDevTool()
 
