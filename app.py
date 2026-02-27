@@ -180,7 +180,7 @@ with col_run:
                 os.environ["GOOGLE_API_KEY"] = api_key
                 os.environ["SERPER_API_KEY"] = serper_api_key
                 
-                llm = LLM(model="gemini/gemini-3-flash-preview", temperature=0.6, api_key=api_key)
+                llm = LLM(model="gemini/gemini-2.5-flash-lite", temperature=0.6, api_key=api_key)
                 guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
                 search_tool = SerperDevTool()
 
