@@ -4,6 +4,7 @@ import sys
 import re
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import FileReadTool
+from langchain_community.tools import DuckDuckGoSearchRun
 
 # 網頁 UI 設定
 st.set_page_config(page_title="Smart Watcher - 社群公關智囊團", page_icon="🤖")
@@ -43,13 +44,19 @@ if st.button("🚀 啟動智囊團分析"):
             os.environ["GOOGLE_API_KEY"] = api_key
             
             llm = LLM(model="gemini/gemini-2.5-flash", temperature=0.6, api_key=api_key)
+            # 建立讀取本地檔案的工具
             guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
+            
+            # 👉 新增：建立 DuckDuckGo 網路搜尋工具
+            search_tool = DuckDuckGoSearchRun()
 
             # 👉 關鍵：加上 verbose=True 讓他們開口講話
             researcher = Agent(
                 role='資深社群輿情分析師',
-                goal='分析 Threads 貼文，提供財經與技術面的切入點建議。',
+                # 👉 關鍵：在目標中要求他必須先上網搜尋最新資訊
+                goal='分析 Threads 貼文。你必須使用搜尋工具去網路上尋找該公司或相關技術（如 ASIC）的「最新新聞或近期股價動態」，結合這些最新資訊來提供切入點建議。',
                 backstory='你是一個對美股半導體與網通晶片極度敏銳的數據分析師。擅長一針見血地看出散戶的焦慮與市場盲點。',
+                tools=[search_tool], # 👉 關鍵：把搜尋工具交給他
                 allow_delegation=False,
                 verbose=True, 
                 llm=llm
