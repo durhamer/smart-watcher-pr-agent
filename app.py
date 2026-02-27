@@ -45,7 +45,7 @@ AGENT_ROSTER = {
         "expected_output": "一段準備好可以直接複製貼上的繁體中文留言草稿。",
         "needs_search": False,
         "needs_guidelines": True
-    }
+    },
     "GreenBird_writer": {
         "icon": "🐦",
         "role": "充滿台灣價值的小編",
