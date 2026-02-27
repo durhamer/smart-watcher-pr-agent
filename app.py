@@ -105,7 +105,11 @@ with col_check:
             with st.spinner("AI 架構師正在審查您的排班表..."):
                 os.environ["GOOGLE_API_KEY"] = api_key
                 # 召喚一個專門用來檢查邏輯的輕量級大腦
-                reviewer_llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.2)
+                reviewer_llm = ChatGoogleGenerativeAI(
+                    model="gemini-1.5-flash", 
+                    temperature=0.2,
+                    api_key=api_key  # 👉 加上這行，確保它絕對拿得到金鑰
+                )
 
                 pipeline_str = " ➡️ ".join([AGENT_ROSTER[k]['role'] for k in selected_agent_keys])
                 roles_desc = "\n".join([f"- {AGENT_ROSTER[k]['role']}: {AGENT_ROSTER[k]['goal']}" for k in selected_agent_keys])
@@ -129,7 +133,9 @@ with col_check:
                     response = reviewer_llm.invoke(prompt)
                     st.info(f"**🕵️ AI 架構師點評：**\n\n{response.content}")
                 except Exception as e:
-                    st.error("檢查時發生錯誤，請確認 API Key 是否正確。")
+                    # 👉 把罐頭訊息換掉，直接印出底層的真實死因
+                    st.error("🚨 檢查時發生錯誤！真實的系統回報如下：")
+                    st.code(str(e))
 
 with col_run:
     if st.button("🚀 確認無誤，正式啟動團隊！", type="primary", use_container_width=True):
