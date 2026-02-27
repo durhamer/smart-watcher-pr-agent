@@ -105,7 +105,7 @@ with col_check:
             with st.spinner("AI 架構師正在審查您的排班表..."):
                 os.environ["GOOGLE_API_KEY"] = api_key
                 # 召喚一個專門用來檢查邏輯的輕量級大腦
-                reviewer_llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
+                reviewer_llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.2)
 
                 pipeline_str = " ➡️ ".join([AGENT_ROSTER[k]['role'] for k in selected_agent_keys])
                 roles_desc = "\n".join([f"- {AGENT_ROSTER[k]['role']}: {AGENT_ROSTER[k]['goal']}" for k in selected_agent_keys])
@@ -146,7 +146,7 @@ with col_run:
                 os.environ["GOOGLE_API_KEY"] = api_key
                 os.environ["SERPER_API_KEY"] = serper_api_key
                 
-                llm = LLM(model="gemini/gemini-2.5-flash", temperature=0.6, api_key=api_key)
+                llm = LLM(model="gemini/gemini-1.5-flash", temperature=0.6, api_key=api_key)
                 guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
                 search_tool = SerperDevTool()
 
