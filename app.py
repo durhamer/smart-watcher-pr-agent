@@ -51,35 +51,39 @@ AGENT_ROSTER = {
 default_post = "最近科技股震盪，尤其是網通晶片。像 MRVL 這種 ASIC 概念股，大家覺得現在的位階還可以佈局嗎？想聽聽高手的看法。"
 user_post = st.text_area("🎯 目標 Threads 貼文：", value=default_post, height=100)
 
-# --- 4. 前端 UI：動態顯示員工卡片與打勾框 ---
-st.markdown("### 👥 選擇本次出任務的智囊團成員")
-st.caption("打勾選擇你要指派任務的 Agent，系統會依照順序執行。")
+# --- 4. 前端 UI：動態選擇與排序出任務的 Agent ---
+st.markdown("### 👥 選擇與排序出任務的智囊團成員")
+st.caption("請在下方選單中，**依照你要的執行順序**挑選 Agent。先選的會先執行，並把結果交給下一位！")
 
-# 用來記錄哪些 Agent 被使用者打勾了
-selected_agent_keys = []
+# 建立選項對應字典 (顯示名稱 -> 內部 key)
+agent_options = {f"{config['icon']} {config['role']}": key for key, config in AGENT_ROSTER.items()}
 
-# 迴圈印出每一個 Agent 的漂亮卡片
-for key, config in AGENT_ROSTER.items():
-    # 用兩欄排版，左邊放 Checkbox，右邊放詳細資訊
-    col1, col2 = st.columns([0.5, 9.5])
-    
-    with col1:
-        # 建立打勾框，預設全部勾選
-        is_selected = st.checkbox("", value=True, key=f"chk_{key}")
-        if is_selected:
-            selected_agent_keys.append(key)
-            
-    with col2:
-        # 用 expander 做出漂亮的卡片效果
-        with st.expander(f"**{config['icon']} {config['role']}**", expanded=True):
+# 🌟 關鍵魔法：使用 multiselect 讓使用者選人，它會記住點擊的順序！
+selected_display_names = st.multiselect(
+    "設定出勤名單與執行順序：",
+    options=list(agent_options.keys()),
+    default=list(agent_options.keys()) # 預設全選，且照著 researcher -> pr_writer 的順序
+)
+
+# 把顯示名稱轉回內部的 key 清單 (這份清單的順序，就是你剛剛點擊排出來的順序)
+selected_agent_keys = [agent_options[name] for name in selected_display_names]
+
+# 動態畫出排序好的卡片，讓使用者清楚知道現在的「流水線」長怎樣
+if selected_agent_keys:
+    st.markdown("#### 📋 目前的流水線順序：")
+    for i, key in enumerate(selected_agent_keys):
+        config = AGENT_ROSTER[key]
+        # 卡片標題自動加上「第 X 棒」
+        with st.expander(f"第 {i+1} 棒：{config['icon']} {config['role']}", expanded=True):
             st.markdown(f"**🎯 目標 (Goal):** {config['goal']}")
             st.markdown(f"**📖 背景 (Backstory):** {config['backstory']}")
             
-            # 動態顯示他配備了什麼工具
             tools_str = []
             if config['needs_search']: tools_str.append("🔍 網路搜尋 (Serper)")
-            if config['needs_guidelines']: tools_str.append("📄 教戰守則 (pr_guidelines.txt)")
+            if config['needs_guidelines']: tools_str.append("📄 教戰守則")
             st.markdown(f"**🛠️ 配備工具:** {', '.join(tools_str) if tools_str else '無'}")
+else:
+    st.warning("⚠️ 請從上方選單至少挑選一位 Agent！")
 
 st.markdown("---")
 
