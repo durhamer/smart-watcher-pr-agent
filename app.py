@@ -4,6 +4,7 @@ import sys
 import re
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import FileReadTool, SerperDevTool
+from crewai.utilities.events import crewai_event_bus
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # --- 1. 網頁 UI 基本設定 ---
@@ -176,6 +177,10 @@ with col_run:
             st.warning("⚠️ 至少要打勾選擇一位成員出任務喔！")
         else:
             with st.spinner("Agent 團隊正在開會討論中... 請看下方幕後 Log 👇"):
+                # 👉 新增：強制清除 CrewAI 廣播中心的舊記憶，防止 Log 疊加！
+                if hasattr(crewai_event_bus, '_handlers'):
+                    crewai_event_bus._handlers.clear()
+
                 os.environ["GEMINI_API_KEY"] = api_key
                 os.environ["GOOGLE_API_KEY"] = api_key
                 os.environ["SERPER_API_KEY"] = serper_api_key
