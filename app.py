@@ -131,9 +131,27 @@ with col_check:
                 
                 try:
                     response = reviewer_llm.invoke(prompt)
-                    st.info(f"**🕵️ AI 架構師點評：**\n\n{response.content}")
+                    raw_content = response.content
+                    
+                    # --- 新增：專門處理 Gemini 3 Preview 特殊格式的過濾器 ---
+                    final_text = raw_content # 預設先等於原始內容
+                    
+                    # 如果 LangChain 吐出來的是 List，直接抓第一筆的 text
+                    if isinstance(raw_content, list) and len(raw_content) > 0:
+                        final_text = raw_content[0].get("text", str(raw_content))
+                    # 如果 LangChain 把它硬轉成字串了，我們把它解開來抓 text
+                    elif isinstance(raw_content, str) and raw_content.startswith("[{'type':"):
+                        import ast
+                        try:
+                            parsed = ast.literal_eval(raw_content)
+                            final_text = parsed[0].get("text", raw_content)
+                        except:
+                            pass
+                    # --------------------------------------------------------
+
+                    st.info(f"**🕵️ AI 架構師點評：**\n\n{final_text}")
+                    
                 except Exception as e:
-                    # 👉 把罐頭訊息換掉，直接印出底層的真實死因
                     st.error("🚨 檢查時發生錯誤！真實的系統回報如下：")
                     st.code(str(e))
 
