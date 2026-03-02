@@ -112,23 +112,26 @@ with col_check:
                     response = reviewer_llm.invoke(prompt)
                     raw_content = response.content
                     
-                    # --- 新增：專門處理 Gemini 3 Preview 特殊格式的過濾器 ---
-                    final_text = raw_content # 預設先等於原始內容
-                    
-                    # 如果 LangChain 吐出來的是 List，直接抓第一筆的 text
+                    # --- Gemini 3 Preview 過濾器 (保持不變) ---
+                    final_text = raw_content
                     if isinstance(raw_content, list) and len(raw_content) > 0:
                         final_text = raw_content[0].get("text", str(raw_content))
-                    # 如果 LangChain 把它硬轉成字串了，我們把它解開來抓 text
                     elif isinstance(raw_content, str) and raw_content.startswith("[{'type':"):
                         import ast
                         try:
                             parsed = ast.literal_eval(raw_content)
                             final_text = parsed[0].get("text", raw_content)
-                        except:
-                            pass
+                        except: pass
                     # --------------------------------------------------------
 
                     st.info(f"**🕵️ AI 架構師點評：**\n\n{final_text}")
+                    
+                    # 👉 新增：Token 低消預估功能！
+                    # 把所有設定檔的文字加起來
+                    base_text = prompt + "".join([str(AGENT_ROSTER[k]) for k in selected_agent_keys])
+                    # 使用模型內建的方法計算 Token
+                    base_tokens = reviewer_llm.get_num_tokens(base_text)
+                    st.warning(f"📊 **Token 消耗預估 (僅含靜態提示詞)：** 約 {base_tokens} Tokens。\n\n*(注意：實際執行時，因為 Agent 會去搜尋網路並來回思考，總消耗量通常會是此預估值的 3 到 5 倍)*")
                     
                 except Exception as e:
                     st.error("🚨 檢查時發生錯誤！真實的系統回報如下：")
@@ -198,6 +201,19 @@ with col_run:
                     st.success("✨ 任務完成！")
                     st.subheader("📝 最終產出：")
                     st.write(result.raw)
+                    
+                    # 👉 新增：印出 CrewAI 的真實 Token 帳單
+                    st.markdown("---")
+                    st.subheader("📈 效能與成本結算 (Token Usage)")
+                    # CrewAI 會把消耗量存在 pr_crew.usage_metrics 裡面
+                    usage = pr_crew.usage_metrics
+                    
+                    # 用欄位排版顯示得更漂亮
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("輸入 Token (Prompt)", usage.get("prompt_tokens", 0))
+                    col2.metric("輸出 Token (Completion)", usage.get("completion_tokens", 0))
+                    col3.metric("總消耗 Token", usage.get("total_tokens", 0))
+                    
                 except Exception as e:
                     st.error("🚨 發生錯誤！")
                     st.code(str(e))
