@@ -1,24 +1,28 @@
 # utils.py
 import re
+import sys
 
 class StreamToExpander:
-    """攔截系統標準輸出 (stdout)，將其轉向 Streamlit 的 Expander 元件中"""
+    """攔截系統標準輸出，轉向 Streamlit，並同步保留給後台"""
     def __init__(self, expander):
         self.expander = expander
         self.buffer = []
         self.text_area = self.expander.empty()
 
     def write(self, data):
-        # 👉 核心修復：遇到 CrewAI 的底層警告，我們直接「已讀不回」，不印在畫面上！
-        if "[CrewAIEventsBus]" in data or "Sync handler error" in data:
+        # 備份一份到原本的終端機，確保伺服器後台還是看得到完整 Log
+        sys.__stdout__.write(data)
+        
+        # 👉 精準過濾：只擋掉那兩個討厭的報錯，其他通通放行！
+        if "Sync handler error" in data or "Event pairing mismatch" in data:
             return
             
-        # 清除終端機專用的 ANSI 顏色代碼
+        # 清除終端機專用的顏色亂碼
         clean_data = re.sub(r'\x1b\[[0-9;]*m', '', data)
         self.buffer.append(clean_data)
+        
+        # 顯示在網頁上
         self.text_area.code("".join(self.buffer), language="text")
 
     def flush(self): 
-        pass
-
-# (原本下方的 clear_crewai_events 函數已經功成身退，可以直接刪除！)
+        sys.__stdout__.flush()
