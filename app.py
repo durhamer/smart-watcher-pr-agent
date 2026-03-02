@@ -12,9 +12,32 @@ st.set_page_config(page_title="Smart Watcher - 社群公關智囊團", page_icon
 st.title("Smart Watcher - 社群公關智囊團 🤖")
 st.markdown("輸入 Threads 上的貼文，勾選需要的團隊成員，讓 AI 為你執行客製化任務。")
 
-# --- 2. 前端 UI：目標貼文輸入區 ---
-default_post = "最近科技股震盪，尤其是網通晶片。像 MRVL 這種 ASIC 概念股，大家覺得現在的位階還可以佈局嗎？想聽聽高手的看法。"
-user_post = st.text_area("🎯 目標 Threads 貼文：", value=default_post, height=100)
+# --- 2. 前端 UI：目標貼文與戰略設定區 ---
+st.markdown("### 🎯 戰術情報台 (輸入貼文與目的)")
+st.caption("請貼上你想攻略的 Threads 內容，並下達你的戰略指令。")
+
+# 使用 Streamlit 的欄位排版，左邊放情報，右邊放目的
+col_info, col_strategy = st.columns([1.2, 1])
+
+with col_info:
+    post_content = st.text_area("📝 1. 原貼文內容：", height=120, placeholder="貼上版主發的原文...")
+    comment_content = st.text_area("💬 2. 精選留言區：", height=120, placeholder="複製幾段你覺得有代表性、或你想反駁的網友留言貼在這裡...")
+
+with col_strategy:
+    strategy_goal = st.text_area("🎯 3. 你的戰略目的 (給小編的秘密指令)：", height=300, 
+                                 placeholder="例如：\n我想假裝是路過的高手。\n請順著某個留言的邏輯，順勢帶出 MRVL 的網通技術其實比 NVDA 更具長線佈局價值。\n語氣要帶點嘲諷，不要太像寫報告。")
+
+# 🌟 魔法步驟：把這三個輸入框的內容，打包成「一包大字串」，這包字串會被當作 {post} 傳給所有 Agent！
+combined_info = f"""
+【原貼文內容】：
+{post_content if post_content else "無"}
+
+【網友留言區】：
+{comment_content if comment_content else "無"}
+
+【老闆下達的戰略目的】：
+{strategy_goal if strategy_goal else "請依據上述內容，自由發揮給出最合適的留言。"}
+"""
 
 # --- 3. 前端 UI：動態選擇與排序出任務的 Agent ---
 st.markdown("### 👥 選擇與排序出任務的智囊團成員")
@@ -60,8 +83,8 @@ with col_check:
         else:
             with st.spinner("AI 架構師正在審查您的排班表..."):
                 try:
-                    # 👉 呼叫外部的 AI 引擎，網頁層完全不用管他背後怎麼做的
-                    final_text, base_tokens = evaluate_pipeline(user_post, selected_agent_keys, api_key)
+                    # 👉 這裡已經改用 combined_info 傳遞情報
+                    final_text, base_tokens = evaluate_pipeline(combined_info, selected_agent_keys, api_key)
                     
                     st.info(f"**🕵️ AI 架構師點評：**\n\n{final_text}")
                     st.warning(f"📊 **Token 消耗預估 (僅含靜態提示詞)：** 約 {base_tokens} Tokens。\n\n*(注意：實際執行時，因 Agent 會去搜尋網路並來回思考，總消耗量通常會是此預估值的 3 到 5 倍)*")
@@ -81,7 +104,6 @@ with col_run:
         else:
             with st.spinner("Agent 團隊正在開會討論中... 請看下方幕後 Log 👇"):
                 
-                
                 st.markdown("### 🧠 Agent 思考過程即時轉播")
                 log_expander = st.expander("點擊展開/收合幕後 Log", expanded=True)
                 
@@ -95,8 +117,8 @@ with col_run:
                 sys.stderr = stream_catcher 
 
                 try:
-                    # 呼叫外部的 AI 引擎，直接把貼文丟進去
-                    result_text, metrics = execute_crew(user_post, selected_agent_keys, api_key, serper_api_key)
+                    # 👉 這裡已經改用 combined_info 傳遞情報
+                    result_text, metrics = execute_crew(combined_info, selected_agent_keys, api_key, serper_api_key)
                     
                     st.success("✨ 任務完成！")
                     st.subheader("📝 最終產出：")
