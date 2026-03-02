@@ -84,11 +84,18 @@ with col_run:
                 
                 st.markdown("### 🧠 Agent 思考過程即時轉播")
                 log_expander = st.expander("點擊展開/收合幕後 Log", expanded=True)
+                
+                # 👉 雙重備份：同時記住標準通道與錯誤通道
                 original_stdout = sys.stdout 
-                sys.stdout = StreamToExpander(log_expander) 
+                original_stderr = sys.stderr 
+                
+                # 👉 雙重攔截：把兩個通道的聲音都導向我們的網頁 Expander
+                stream_catcher = StreamToExpander(log_expander)
+                sys.stdout = stream_catcher 
+                sys.stderr = stream_catcher 
 
                 try:
-                    # 👉 呼叫外部的 AI 引擎，直接把貼文丟進去，等著拿產出跟帳單
+                    # 呼叫外部的 AI 引擎，直接把貼文丟進去
                     result_text, metrics = execute_crew(user_post, selected_agent_keys, api_key, serper_api_key)
                     
                     st.success("✨ 任務完成！")
@@ -107,4 +114,6 @@ with col_run:
                     st.error("🚨 發生錯誤！")
                     st.code(str(e))
                 finally:
+                    # 👉 雙重還原：任務結束後，把兩個通道都還給系統
                     sys.stdout = original_stdout
+                    sys.stderr = original_stderr
