@@ -5,6 +5,8 @@ import re
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import FileReadTool, SerperDevTool
 from langchain_google_genai import ChatGoogleGenerativeAI
+# 👉 新增這一行：從我們剛剛寫的 agents.py 裡面，把名冊借調過來用
+from agents import AGENT_ROSTER
 
 # --- 1. 網頁 UI 基本設定 ---
 st.set_page_config(page_title="Smart Watcher - 社群公關智囊團", page_icon="🤖", layout="wide")
