@@ -4,7 +4,7 @@ import sys
 
 # 👉 從我們剛建立的模組中引入所需的工具與 AI 引擎
 from agents import AGENT_ROSTER
-from utils import StreamToExpander, clear_crewai_events
+from utils import StreamToExpander
 from ai_core import evaluate_pipeline, execute_crew
 
 # --- 1. 網頁 UI 基本設定 ---
@@ -81,8 +81,6 @@ with col_run:
         else:
             with st.spinner("Agent 團隊正在開會討論中... 請看下方幕後 Log 👇"):
                 
-                # 呼叫工具箱的除靈函數
-                clear_crewai_events()
                 
                 st.markdown("### 🧠 Agent 思考過程即時轉播")
                 log_expander = st.expander("點擊展開/收合幕後 Log", expanded=True)
