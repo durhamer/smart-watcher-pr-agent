@@ -208,11 +208,16 @@ with col_run:
                     # CrewAI 會把消耗量存在 pr_crew.usage_metrics 裡面
                     usage = pr_crew.usage_metrics
                     
+                    # 防彈寫法：判斷 usage 是物件還是字典，安全抓取數值
+                    prompt_t = usage.prompt_tokens if hasattr(usage, 'prompt_tokens') else usage.get("prompt_tokens", 0)
+                    comp_t = usage.completion_tokens if hasattr(usage, 'completion_tokens') else usage.get("completion_tokens", 0)
+                    total_t = usage.total_tokens if hasattr(usage, 'total_tokens') else usage.get("total_tokens", 0)
+                    
                     # 用欄位排版顯示得更漂亮
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("輸入 Token (Prompt)", usage.get("prompt_tokens", 0))
-                    col2.metric("輸出 Token (Completion)", usage.get("completion_tokens", 0))
-                    col3.metric("總消耗 Token", usage.get("total_tokens", 0))
+                    col1.metric("輸入 Token", prompt_t)
+                    col2.metric("輸出 Token", comp_t)
+                    col3.metric("總消耗 Token", total_t)
                     
                 except Exception as e:
                     st.error("🚨 發生錯誤！")
