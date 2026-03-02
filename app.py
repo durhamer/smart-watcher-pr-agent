@@ -1,40 +1,16 @@
+# app.py
 import streamlit as st
-import os
 import sys
-import re
-from crewai import Agent, Task, Crew, Process, LLM
-from crewai_tools import FileReadTool, SerperDevTool
-from langchain_google_genai import ChatGoogleGenerativeAI
 
-# 👉 動態尋找廣播中心的防彈寫法 (解決 Log 前世記憶與 Sync handler error)
-try:
-    from crewai.events.event_bus import crewai_event_bus
-except ModuleNotFoundError:
-    try:
-        from crewai.utilities.events import crewai_event_bus
-    except ModuleNotFoundError:
-        crewai_event_bus = None
-
-# 👉 從我們剛剛寫的 agents.py 裡面，把名冊借調過來用
+# 👉 從我們剛建立的模組中引入所需的工具與 AI 引擎
 from agents import AGENT_ROSTER
+from utils import StreamToExpander, clear_crewai_events
+from ai_core import evaluate_pipeline, execute_crew
 
 # --- 1. 網頁 UI 基本設定 ---
 st.set_page_config(page_title="Smart Watcher - 社群公關智囊團", page_icon="🤖", layout="wide")
 st.title("Smart Watcher - 社群公關智囊團 🤖")
 st.markdown("輸入 Threads 上的貼文，勾選需要的團隊成員，讓 AI 為你執行客製化任務。")
-
-class StreamToExpander:
-    def __init__(self, expander):
-        self.expander = expander
-        self.buffer = []
-        self.text_area = self.expander.empty()
-
-    def write(self, data):
-        clean_data = re.sub(r'\x1b\[[0-9;]*m', '', data)
-        self.buffer.append(clean_data)
-        self.text_area.code("".join(self.buffer), language="text")
-
-    def flush(self): pass
 
 # --- 2. 前端 UI：目標貼文輸入區 ---
 default_post = "最近科技股震盪，尤其是網通晶片。像 MRVL 這種 ASIC 概念股，大家覺得現在的位階還可以佈局嗎？想聽聽高手的看法。"
@@ -44,20 +20,16 @@ user_post = st.text_area("🎯 目標 Threads 貼文：", value=default_post, he
 st.markdown("### 👥 選擇與排序出任務的智囊團成員")
 st.caption("請在下方選單中，**依照你要的執行順序**挑選 Agent。先選的會先執行，並把結果交給下一位！")
 
-# 建立選項對應字典 (顯示名稱 -> 內部 key)
 agent_options = {f"{config['icon']} {config['role']}": key for key, config in AGENT_ROSTER.items()}
 
-# 🌟 關鍵魔法：使用 multiselect 讓使用者選人，它會記住點擊的順序！
 selected_display_names = st.multiselect(
     "設定出勤名單與執行順序：",
     options=list(agent_options.keys()),
-    default=list(agent_options.keys()) # 預設全選
+    default=list(agent_options.keys())
 )
 
-# 把顯示名稱轉回內部的 key 清單
 selected_agent_keys = [agent_options[name] for name in selected_display_names]
 
-# 動態畫出排序好的卡片
 if selected_agent_keys:
     st.markdown("#### 📋 目前的流水線順序：")
     for i, key in enumerate(selected_agent_keys):
@@ -87,55 +59,12 @@ with col_check:
             st.warning("⚠️ 請至少挑選一位 Agent！")
         else:
             with st.spinner("AI 架構師正在審查您的排班表..."):
-                os.environ["GOOGLE_API_KEY"] = api_key
-                # 召喚一個專門用來檢查邏輯的輕量級大腦
-                reviewer_llm = ChatGoogleGenerativeAI(
-                    model="gemini-3-flash-preview", 
-                    temperature=0.2,
-                    api_key=api_key
-                )
-
-                pipeline_str = " ➡️ ".join([AGENT_ROSTER[k]['role'] for k in selected_agent_keys])
-                roles_desc = "\n".join([f"- {AGENT_ROSTER[k]['role']}: {AGENT_ROSTER[k]['goal']}" for k in selected_agent_keys])
-
-                prompt = f"""
-                你是一位資深的 AI 系統架構師。使用者安排了一個 Multi-Agent 流水線來處理以下任務：
-                「{user_post}」
-
-                使用者安排的執行順序是：
-                {pipeline_str}
-
-                各 Agent 職責：
-                {roles_desc}
-
-                請以繁體中文，在 150 字以內評估這個順序是否合理。
-                如果邏輯完美（例如：先查資料分析，再讓公關寫作），請大力稱讚。
-                如果邏輯顛倒（例如：公關先憑空寫作，分析師才去查資料），請幽默地點出盲點（例如提醒公關會被迫通靈），並建議正確順序。
-                """
-                
                 try:
-                    response = reviewer_llm.invoke(prompt)
-                    raw_content = response.content
+                    # 👉 呼叫外部的 AI 引擎，網頁層完全不用管他背後怎麼做的
+                    final_text, base_tokens = evaluate_pipeline(user_post, selected_agent_keys, api_key)
                     
-                    # --- Gemini 3 Preview 特殊格式過濾器 ---
-                    final_text = raw_content
-                    if isinstance(raw_content, list) and len(raw_content) > 0:
-                        final_text = raw_content[0].get("text", str(raw_content))
-                    elif isinstance(raw_content, str) and raw_content.startswith("[{'type':"):
-                        import ast
-                        try:
-                            parsed = ast.literal_eval(raw_content)
-                            final_text = parsed[0].get("text", raw_content)
-                        except: pass
-                    # --------------------------------------------------------
-
                     st.info(f"**🕵️ AI 架構師點評：**\n\n{final_text}")
-                    
-                    # 👉 Token 低消預估功能
-                    base_text = prompt + "".join([str(AGENT_ROSTER[k]) for k in selected_agent_keys])
-                    base_tokens = reviewer_llm.get_num_tokens(base_text)
                     st.warning(f"📊 **Token 消耗預估 (僅含靜態提示詞)：** 約 {base_tokens} Tokens。\n\n*(注意：實際執行時，因 Agent 會去搜尋網路並來回思考，總消耗量通常會是此預估值的 3 到 5 倍)*")
-                    
                 except Exception as e:
                     st.error("🚨 檢查時發生錯誤！真實的系統回報如下：")
                     st.code(str(e))
@@ -151,80 +80,30 @@ with col_run:
             st.warning("⚠️ 至少要打勾選擇一位成員出任務喔！")
         else:
             with st.spinner("Agent 團隊正在開會討論中... 請看下方幕後 Log 👇"):
-
-                # 👉 強制清除 CrewAI 廣播中心的舊記憶，防止 Log 疊加與當機！
-                if crewai_event_bus and hasattr(crewai_event_bus, '_handlers'):
-                    crewai_event_bus._handlers.clear()
-
-                os.environ["GEMINI_API_KEY"] = api_key
-                os.environ["GOOGLE_API_KEY"] = api_key
-                os.environ["SERPER_API_KEY"] = serper_api_key
                 
-                # 團隊主力大腦
-                llm = LLM(model="gemini/gemini-2.5-flash-lite", temperature=0.6, api_key=api_key)
-                guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
-                search_tool = SerperDevTool()
-
-                active_agents = []
-                active_tasks = []
-
-                # 從人事檔案室 (AGENT_ROSTER) 動態組裝團隊
-                for key in selected_agent_keys:
-                    config = AGENT_ROSTER[key]
-                    
-                    agent_tools = []
-                    if config['needs_search']: agent_tools.append(search_tool)
-                    if config['needs_guidelines']: agent_tools.append(guidelines_tool)
-                    
-                    agent = Agent(
-                        role=config['role'],
-                        goal=config['goal'],
-                        backstory=config['backstory'],
-                        tools=agent_tools,
-                        allow_delegation=False,
-                        verbose=True,
-                        llm=llm
-                    )
-                    active_agents.append(agent)
-                    
-                    task = Task(
-                        description=config['task_desc'].format(post=user_post),
-                        expected_output=config['expected_output'],
-                        agent=agent
-                    )
-                    active_tasks.append(task)
-
-                pr_crew = Crew(
-                    agents=active_agents,
-                    tasks=active_tasks,
-                    process=Process.sequential 
-                )
-
+                # 呼叫工具箱的除靈函數
+                clear_crewai_events()
+                
                 st.markdown("### 🧠 Agent 思考過程即時轉播")
                 log_expander = st.expander("點擊展開/收合幕後 Log", expanded=True)
                 original_stdout = sys.stdout 
                 sys.stdout = StreamToExpander(log_expander) 
 
                 try:
-                    result = pr_crew.kickoff()
+                    # 👉 呼叫外部的 AI 引擎，直接把貼文丟進去，等著拿產出跟帳單
+                    result_text, metrics = execute_crew(user_post, selected_agent_keys, api_key, serper_api_key)
+                    
                     st.success("✨ 任務完成！")
                     st.subheader("📝 最終產出：")
-                    st.write(result.raw)
+                    st.write(result_text)
                     
-                    # 👉 印出 CrewAI 的真實 Token 帳單 (防彈版)
                     st.markdown("---")
                     st.subheader("📈 效能與成本結算 (Token Usage)")
-                    usage = pr_crew.usage_metrics
-                    
-                    # 防彈寫法：判斷 usage 是物件還是字典，安全抓取數值
-                    prompt_t = usage.prompt_tokens if hasattr(usage, 'prompt_tokens') else usage.get("prompt_tokens", 0)
-                    comp_t = usage.completion_tokens if hasattr(usage, 'completion_tokens') else usage.get("completion_tokens", 0)
-                    total_t = usage.total_tokens if hasattr(usage, 'total_tokens') else usage.get("total_tokens", 0)
                     
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("輸入 Token (Prompt)", prompt_t)
-                    col2.metric("輸出 Token (Completion)", comp_t)
-                    col3.metric("總消耗 Token", total_t)
+                    col1.metric("輸入 Token (Prompt)", metrics["prompt_tokens"])
+                    col2.metric("輸出 Token (Completion)", metrics["completion_tokens"])
+                    col3.metric("總消耗 Token", metrics["total_tokens"])
                     
                 except Exception as e:
                     st.error("🚨 發生錯誤！")
