@@ -9,6 +9,10 @@ class StreamToExpander:
         self.text_area = self.expander.empty()
 
     def write(self, data):
+        # 👉 核心修復：遇到 CrewAI 的底層警告，我們直接「已讀不回」，不印在畫面上！
+        if "[CrewAIEventsBus]" in data or "Sync handler error" in data:
+            return
+            
         # 清除終端機專用的 ANSI 顏色代碼
         clean_data = re.sub(r'\x1b\[[0-9;]*m', '', data)
         self.buffer.append(clean_data)
@@ -17,15 +21,4 @@ class StreamToExpander:
     def flush(self): 
         pass
 
-def clear_crewai_events():
-    """防彈版清除機制：強制洗掉 CrewAI 廣播中心的舊記憶，防止 Log 疊加與網頁當機"""
-    try:
-        from crewai.events.event_bus import crewai_event_bus
-    except ModuleNotFoundError:
-        try:
-            from crewai.utilities.events import crewai_event_bus
-        except ModuleNotFoundError:
-            crewai_event_bus = None
-            
-    if crewai_event_bus and hasattr(crewai_event_bus, '_handlers'):
-        crewai_event_bus._handlers.clear()
+# (原本下方的 clear_crewai_events 函數已經功成身退，可以直接刪除！)
