@@ -5,7 +5,17 @@ import re
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import FileReadTool, SerperDevTool
 from langchain_google_genai import ChatGoogleGenerativeAI
-# 👉 新增這一行：從我們剛剛寫的 agents.py 裡面，把名冊借調過來用
+
+# 👉 動態尋找廣播中心的防彈寫法 (解決 Log 前世記憶與 Sync handler error)
+try:
+    from crewai.events.event_bus import crewai_event_bus
+except ModuleNotFoundError:
+    try:
+        from crewai.utilities.events import crewai_event_bus
+    except ModuleNotFoundError:
+        crewai_event_bus = None
+
+# 👉 從我們剛剛寫的 agents.py 裡面，把名冊借調過來用
 from agents import AGENT_ROSTER
 
 # --- 1. 網頁 UI 基本設定 ---
@@ -26,7 +36,6 @@ class StreamToExpander:
 
     def flush(self): pass
 
-
 # --- 2. 前端 UI：目標貼文輸入區 ---
 default_post = "最近科技股震盪，尤其是網通晶片。像 MRVL 這種 ASIC 概念股，大家覺得現在的位階還可以佈局嗎？想聽聽高手的看法。"
 user_post = st.text_area("🎯 目標 Threads 貼文：", value=default_post, height=100)
@@ -42,18 +51,17 @@ agent_options = {f"{config['icon']} {config['role']}": key for key, config in AG
 selected_display_names = st.multiselect(
     "設定出勤名單與執行順序：",
     options=list(agent_options.keys()),
-    default=list(agent_options.keys()) # 預設全選，且照著 researcher -> pr_writer 的順序
+    default=list(agent_options.keys()) # 預設全選
 )
 
-# 把顯示名稱轉回內部的 key 清單 (這份清單的順序，就是你剛剛點擊排出來的順序)
+# 把顯示名稱轉回內部的 key 清單
 selected_agent_keys = [agent_options[name] for name in selected_display_names]
 
-# 動態畫出排序好的卡片，讓使用者清楚知道現在的「流水線」長怎樣
+# 動態畫出排序好的卡片
 if selected_agent_keys:
     st.markdown("#### 📋 目前的流水線順序：")
     for i, key in enumerate(selected_agent_keys):
         config = AGENT_ROSTER[key]
-        # 卡片標題自動加上「第 X 棒」
         with st.expander(f"第 {i+1} 棒：{config['icon']} {config['role']}", expanded=True):
             st.markdown(f"**🎯 目標 (Goal):** {config['goal']}")
             st.markdown(f"**📖 背景 (Backstory):** {config['backstory']}")
@@ -67,10 +75,7 @@ else:
 
 st.markdown("---")
 
-# --- 5. 執行核心邏輯與邏輯檢查 ---
-st.markdown("---")
-
-# 建立左右兩個按鈕
+# --- 4. 執行核心邏輯與邏輯檢查 ---
 col_check, col_run = st.columns(2)
 
 with col_check:
@@ -87,7 +92,7 @@ with col_check:
                 reviewer_llm = ChatGoogleGenerativeAI(
                     model="gemini-3-flash-preview", 
                     temperature=0.2,
-                    api_key=api_key  # 👉 加上這行，確保它絕對拿得到金鑰
+                    api_key=api_key
                 )
 
                 pipeline_str = " ➡️ ".join([AGENT_ROSTER[k]['role'] for k in selected_agent_keys])
@@ -112,7 +117,7 @@ with col_check:
                     response = reviewer_llm.invoke(prompt)
                     raw_content = response.content
                     
-                    # --- Gemini 3 Preview 過濾器 (保持不變) ---
+                    # --- Gemini 3 Preview 特殊格式過濾器 ---
                     final_text = raw_content
                     if isinstance(raw_content, list) and len(raw_content) > 0:
                         final_text = raw_content[0].get("text", str(raw_content))
@@ -126,12 +131,10 @@ with col_check:
 
                     st.info(f"**🕵️ AI 架構師點評：**\n\n{final_text}")
                     
-                    # 👉 新增：Token 低消預估功能！
-                    # 把所有設定檔的文字加起來
+                    # 👉 Token 低消預估功能
                     base_text = prompt + "".join([str(AGENT_ROSTER[k]) for k in selected_agent_keys])
-                    # 使用模型內建的方法計算 Token
                     base_tokens = reviewer_llm.get_num_tokens(base_text)
-                    st.warning(f"📊 **Token 消耗預估 (僅含靜態提示詞)：** 約 {base_tokens} Tokens。\n\n*(注意：實際執行時，因為 Agent 會去搜尋網路並來回思考，總消耗量通常會是此預估值的 3 到 5 倍)*")
+                    st.warning(f"📊 **Token 消耗預估 (僅含靜態提示詞)：** 約 {base_tokens} Tokens。\n\n*(注意：實際執行時，因 Agent 會去搜尋網路並來回思考，總消耗量通常會是此預估值的 3 到 5 倍)*")
                     
                 except Exception as e:
                     st.error("🚨 檢查時發生錯誤！真實的系統回報如下：")
@@ -149,10 +152,15 @@ with col_run:
         else:
             with st.spinner("Agent 團隊正在開會討論中... 請看下方幕後 Log 👇"):
 
+                # 👉 強制清除 CrewAI 廣播中心的舊記憶，防止 Log 疊加與當機！
+                if crewai_event_bus and hasattr(crewai_event_bus, '_handlers'):
+                    crewai_event_bus._handlers.clear()
+
                 os.environ["GEMINI_API_KEY"] = api_key
                 os.environ["GOOGLE_API_KEY"] = api_key
                 os.environ["SERPER_API_KEY"] = serper_api_key
                 
+                # 團隊主力大腦
                 llm = LLM(model="gemini/gemini-2.5-flash-lite", temperature=0.6, api_key=api_key)
                 guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
                 search_tool = SerperDevTool()
@@ -160,6 +168,7 @@ with col_run:
                 active_agents = []
                 active_tasks = []
 
+                # 從人事檔案室 (AGENT_ROSTER) 動態組裝團隊
                 for key in selected_agent_keys:
                     config = AGENT_ROSTER[key]
                     
@@ -202,10 +211,9 @@ with col_run:
                     st.subheader("📝 最終產出：")
                     st.write(result.raw)
                     
-                    # 👉 新增：印出 CrewAI 的真實 Token 帳單
+                    # 👉 印出 CrewAI 的真實 Token 帳單 (防彈版)
                     st.markdown("---")
                     st.subheader("📈 效能與成本結算 (Token Usage)")
-                    # CrewAI 會把消耗量存在 pr_crew.usage_metrics 裡面
                     usage = pr_crew.usage_metrics
                     
                     # 防彈寫法：判斷 usage 是物件還是字典，安全抓取數值
@@ -213,10 +221,9 @@ with col_run:
                     comp_t = usage.completion_tokens if hasattr(usage, 'completion_tokens') else usage.get("completion_tokens", 0)
                     total_t = usage.total_tokens if hasattr(usage, 'total_tokens') else usage.get("total_tokens", 0)
                     
-                    # 用欄位排版顯示得更漂亮
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("輸入 Token", prompt_t)
-                    col2.metric("輸出 Token", comp_t)
+                    col1.metric("輸入 Token (Prompt)", prompt_t)
+                    col2.metric("輸出 Token (Completion)", comp_t)
                     col3.metric("總消耗 Token", total_t)
                     
                 except Exception as e:
