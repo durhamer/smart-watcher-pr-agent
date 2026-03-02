@@ -90,10 +90,12 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
         )
         active_tasks.append(task)
 
+    # ai_core.py 的下方
     pr_crew = Crew(
         agents=active_agents,
         tasks=active_tasks,
-        process=Process.sequential 
+        process=Process.sequential,
+        verbose=True  # 👉 就是少了這行！這行是開啟團隊廣播器的總開關
     )
 
     result = pr_crew.kickoff()
