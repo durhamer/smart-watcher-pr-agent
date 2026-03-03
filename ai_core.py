@@ -48,7 +48,8 @@ def evaluate_pipeline(user_post, selected_agent_keys, api_key):
         
     # 計算基礎 Token
     base_text = prompt + "".join([str(AGENT_ROSTER[k]) for k in selected_agent_keys])
-    base_tokens = reviewer_llm.get_num_tokens(base_text)
+    # 👉 防彈版估算法：拔掉吃記憶體的模組，直接用字數推算 (1字約 1.5 Token)
+    base_tokens = int(len(base_text) * 1.5)
     
     return final_text, base_tokens
 
