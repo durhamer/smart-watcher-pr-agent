@@ -7,7 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 # 👉 引入員工名冊與我們的中央控制台
 from agents import AGENT_ROSTER
-from config import AI_MODELS
+from app_config import AI_MODELS
 
 def evaluate_pipeline(user_post, selected_agent_keys, api_key):
     """呼叫架構師大腦，檢查邏輯並預估 Token"""
