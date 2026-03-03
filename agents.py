@@ -50,6 +50,16 @@ AGENT_ROSTER = {
         "expected_output": "一段準備好可以直接複製貼上，能達成我們戰略目的之 Threads 繁體中文留言。",
         "needs_search": False,
         "needs_guidelines": True # 可以吃一份專門針對「滲透語氣」的教戰守則
+    },
+    "threads_radar": {
+        "icon": "📡",
+        "role": "Threads 趨勢情報雷達",
+        "goal": "使用進階 Google 搜尋語法（Google Dorking），從外部精準探測 Threads 上關於特定主題的最新討論風向。",
+        "backstory": "你是一位精通開源情報收集（OSINT）的駭客級情報員。你非常清楚社群平台有反爬蟲機制，所以你擅長利用 `site:threads.net` 這種搜尋指令，繞過平台高牆，直接從搜尋引擎抓取網友最新的真實發言。",
+        "task_desc": "請閱讀使用者的指令與情報：\n\n{post}\n\n【你的專屬任務】：\n1. 提取出使用者想關注的核心「關鍵字」。\n2. 務必使用工具，並使用 `site:threads.net \"關鍵字\"` 的語法進行網路搜尋（例如：想找台積電，就搜尋 site:threads.net \"台積電\"）。\n3. 根據搜尋到的外部結果，總結目前 Threads 網友對這個議題的真實討論重點與風向。\n\n【注意】：不要憑空通靈，必須基於你搜尋回來的結果撰寫報告。",
+        "expected_output": "一份「Threads 外部探測快報」，列出你用關鍵字搜到的最新 Threads 討論重點與網友情緒。",
+        "needs_search": True,  # 👉 這是關鍵！必須給他配備 Google 搜尋工具
+        "needs_guidelines": False
     }
     # 未來如果要加新員工，就直接在這裡繼續往下寫！
 }
