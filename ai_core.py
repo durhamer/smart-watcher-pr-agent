@@ -4,15 +4,19 @@ import ast
 from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import FileReadTool, SerperDevTool
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+# 👉 引入員工名冊與我們的中央控制台
 from agents import AGENT_ROSTER
+from config import AI_MODELS
 
 def evaluate_pipeline(user_post, selected_agent_keys, api_key):
     """呼叫架構師大腦，檢查邏輯並預估 Token"""
     os.environ["GOOGLE_API_KEY"] = api_key
     
+    # 👉 這裡改用 config.py 的設定
     reviewer_llm = ChatGoogleGenerativeAI(
-        model="gemini-3-flash-preview", 
-        temperature=0.2,
+        model=AI_MODELS.REVIEWER_MODEL, 
+        temperature=AI_MODELS.REVIEWER_TEMP,
         api_key=api_key
     )
 
@@ -46,9 +50,8 @@ def evaluate_pipeline(user_post, selected_agent_keys, api_key):
             final_text = parsed[0].get("text", raw_content)
         except: pass
         
-    # 計算基礎 Token
+    # 防彈版估算法：直接用字數推算 (1字約 1.5 Token)
     base_text = prompt + "".join([str(AGENT_ROSTER[k]) for k in selected_agent_keys])
-    # 👉 防彈版估算法：拔掉吃記憶體的模組，直接用字數推算 (1字約 1.5 Token)
     base_tokens = int(len(base_text) * 1.5)
     
     return final_text, base_tokens
@@ -59,7 +62,13 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
     os.environ["GOOGLE_API_KEY"] = api_key
     os.environ["SERPER_API_KEY"] = serper_api_key
     
-    llm = LLM(model="gemini/gemini-2.5-flash-lite", temperature=0.6, api_key=api_key)
+    # 👉 這裡改用 config.py 的設定
+    llm = LLM(
+        model=AI_MODELS.CREW_MAIN_MODEL, 
+        temperature=AI_MODELS.CREW_TEMP, 
+        api_key=api_key
+    )
+    
     guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
     search_tool = SerperDevTool()
 
@@ -91,12 +100,11 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
         )
         active_tasks.append(task)
 
-    # ai_core.py 的下方
     pr_crew = Crew(
         agents=active_agents,
         tasks=active_tasks,
         process=Process.sequential,
-        verbose=True  # 👉 就是少了這行！這行是開啟團隊廣播器的總開關
+        verbose=True
     )
 
     result = pr_crew.kickoff()
