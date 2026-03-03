@@ -2,6 +2,10 @@
 import streamlit as st
 import sys
 
+# 👉 終極防護：每次網頁刷新時，強制把可能被卡死的系統通道還原！
+sys.stdout = sys.__stdout__
+sys.stderr = sys.__stderr__
+
 # 👉 從我們剛建立的模組中引入所需的工具與 AI 引擎
 from agents import AGENT_ROSTER
 from utils import StreamToExpander
