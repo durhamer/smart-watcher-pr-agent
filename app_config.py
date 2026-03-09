@@ -5,7 +5,7 @@ class AI_MODELS:
     
     # 1. 系統架構師大腦：負責「檢查流水線邏輯」與「預估 Token」
     # 特性：需要聰明、邏輯好，但不用執行複雜工具
-    REVIEWER_MODEL = "gemini-3-flash-preview"
+    REVIEWER_MODEL = "gemini-2.5-flash-lite"
     REVIEWER_TEMP = 0.2  # 溫度越低越嚴謹
     
     # 2. 團隊主力大腦：負責實際執行 CrewAI 任務的小編與查核員
