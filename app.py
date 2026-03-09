@@ -1,15 +1,9 @@
 # app.py
 import streamlit as st
-import sys
 
-# 👉 每次網頁刷新時，強制還原通道避免當機
-sys.stdout = sys.__stdout__
-sys.stderr = sys.__stderr__
-
-# 👉 引入員工名冊、工具與中央控制台 (已更新為 app_config)
+# 👉 引入員工名冊、核心邏輯與中央控制台 (已經把 utils 拔掉了)
 from agents import AGENT_ROSTER
 from app_config import AI_MODELS
-from utils import StreamToExpander
 from ai_core import evaluate_pipeline, execute_crew
 
 # --- 1. 網頁 UI 基本設定 ---
@@ -37,6 +31,7 @@ combined_info = f"""
 # --- 3. 前端 UI：選擇 Agent ---
 st.markdown("### 👥 選擇與排序出任務的智囊團成員")
 agent_options = {f"{config['icon']} {config['role']}": key for key, config in AGENT_ROSTER.items()}
+# 👉 預設為空陣列，讓畫面保持乾淨
 selected_display_names = st.multiselect("設定出勤名單與執行順序：", options=list(agent_options.keys()), default=[])
 selected_agent_keys = [agent_options[name] for name in selected_display_names]
 
@@ -71,14 +66,8 @@ with col_run:
         api_key = st.secrets.get("GEMINI_API_KEY")
         serper_api_key = st.secrets.get("SERPER_API_KEY")
         if api_key and serper_api_key and selected_agent_keys:
-            with st.spinner("Agent 團隊正在開會討論中..."):
-                st.markdown("### 🧠 Agent 思考過程即時轉播")
-                log_expander = st.expander("點擊展開/收合幕後 Log", expanded=True)
-                
-                original_stdout, original_stderr = sys.stdout, sys.stderr 
-                stream_catcher = StreamToExpander(log_expander)
-                sys.stdout = sys.stderr = stream_catcher 
-
+            # 👉 拔除所有 Log 攔截，只顯示一個安靜的 Spinner 讓系統專心運作
+            with st.spinner("🕵️‍♂️ 特務團隊正在後台秘密查證與撰寫中，這可能需要 1~2 分鐘，請耐心稍候..."):
                 try:
                     result_text, metrics = execute_crew(combined_info, selected_agent_keys, api_key, serper_api_key)
                     st.success("✨ 任務完成！")
@@ -91,5 +80,3 @@ with col_run:
                     col3.metric("總消耗", metrics["total_tokens"])
                 except Exception as e:
                     st.error(f"🚨 錯誤：{str(e)}")
-                finally:
-                    sys.stdout, sys.stderr = original_stdout, original_stderr
