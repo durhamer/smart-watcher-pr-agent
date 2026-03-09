@@ -37,7 +37,7 @@ combined_info = f"""
 # --- 3. 前端 UI：選擇 Agent ---
 st.markdown("### 👥 選擇與排序出任務的智囊團成員")
 agent_options = {f"{config['icon']} {config['role']}": key for key, config in AGENT_ROSTER.items()}
-selected_display_names = st.multiselect("設定出勤名單與執行順序：", options=list(agent_options.keys()), default=list(agent_options.keys()))
+selected_display_names = st.multiselect("設定出勤名單與執行順序：", options=list(agent_options.keys()), default=[])
 selected_agent_keys = [agent_options[name] for name in selected_display_names]
 
 if selected_agent_keys:
