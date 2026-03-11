@@ -70,7 +70,9 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
     )
     
     guidelines_tool = FileReadTool(file_path='pr_guidelines.txt')
-    search_tool = SerperDevTool()
+    
+    # 🛡️ 幫你補上防黑屏的限制器！確保雲端記憶體不會被搜尋結果撐爆
+    search_tool = SerperDevTool(search_parameters={"num": 3})
 
     active_agents = []
     active_tasks = []
@@ -104,6 +106,14 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
         agents=active_agents,
         tasks=active_tasks,
         process=Process.sequential,
+        memory=True,  # 🚀 正式開啟 CrewAI 原生記憶庫！
+        embedder={    # 🚀 強制指定 Google Embedding，避免去抓 OpenAI 導致崩潰
+            "provider": "google",
+            "config": {
+                "model": "models/embedding-001",
+                "api_key": api_key
+            }
+        },
         verbose=True
     )
 
