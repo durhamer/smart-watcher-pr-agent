@@ -11,23 +11,32 @@ def render_admin_page():
     ws = None
     cloud_guidelines = ""
     
-    # --- 1. 嘗試連線並拉取雲端資料 ---
     try:
         credentials_dict = dict(st.secrets["gcp_service_account"])
         gc = gspread.service_account_from_dict(credentials_dict)
         sh = gc.open("Smart_Watcher_DB")
         ws = sh.sheet1
         
-        # 防呆機制：如果試算表是全空的，先幫你建立好欄位標題
+        # --- 🛡️ 強力防爆檢查 1：確保 A1/B1 有標題 ---
         if not ws.acell('A1').value:
-            ws.update(range_name='A1:B2', values=[['Guidelines', 'Settings'], ['', '{}']])
+            ws.update(range_name='A1:B1', values=[['Guidelines', 'Settings']])
             
-        # 讀取目前雲端資料
+        # --- 🛡️ 強力防爆檢查 2：處理 B2 (Settings) ---
+        cloud_settings_raw = ws.acell('B2').value
+        if not cloud_settings_raw or cloud_settings_raw.strip() == "":
+            cloud_settings = {}
+            # 如果是空的，幫它補一個 {} 進去
+            ws.update_acell('B2', '{}')
+        else:
+            try:
+                cloud_settings = json.loads(cloud_settings_raw)
+            except json.JSONDecodeError:
+                cloud_settings = {}
+
+        # --- 🛡️ 強力防爆檢查 3：處理 A2 (Guidelines) ---
         cloud_guidelines = ws.acell('A2').value or ""
-        cloud_settings_str = ws.acell('B2').value or "{}"
-        cloud_settings = json.loads(cloud_settings_str)
         
-        # 動態覆蓋 AGENT_ROSTER 狀態
+        # 同步狀態到 AGENT_ROSTER
         for key, settings in cloud_settings.items():
             if key in AGENT_ROSTER:
                 AGENT_ROSTER[key].update(settings)
@@ -36,57 +45,54 @@ def render_admin_page():
         st.success("✅ Google Sheets 資料庫同步完成！")
         
     except Exception as e:
-        st.error(f"🚨 資料庫連線失敗，請檢查金鑰或試算表名稱：{e}")
+        # 這裡會捕捉到 JSON 解析以外的錯誤（例如試算表名稱打錯）
+        st.error(f"🚨 連線異常：{str(e)}")
 
-    # --- 2. 介面：企業公關教戰守則 ---
-    st.markdown("### 🧠 企業公關教戰守則 (Google Sheets 即時同步)")
+    # --- 2. 介面：教戰守則 ---
+    st.markdown("### 🧠 企業公關教戰守則")
     with st.container(border=True):
-        st.text_area("📄 目前雲端儲存的教戰守則：", value=cloud_guidelines, height=150, disabled=True)
-        new_rule = st.text_area("你想教 AI 團隊什麼新規則？", placeholder="例如：以後只要提到特定對手，都必須維持中立偏悲觀的語氣...")
+        st.text_area("📄 目前雲端儲存的守則：", value=cloud_guidelines, height=150, disabled=True)
+        new_rule = st.text_area("你想教 AI 團隊什麼新規則？")
         
         if st.button("💾 永久寫入雲端大腦"):
             if db_connected and new_rule:
-                with st.spinner("正在寫入 Google Sheets..."):
+                with st.spinner("同步中..."):
                     updated_guidelines = cloud_guidelines + f"\n- 【執行長最新指令】：{new_rule}"
                     ws.update_acell('A2', updated_guidelines)
-                    # 順便把文字存一份到本機的 pr_guidelines.txt，讓 AI 執行時可以讀取
+                    # 寫入本機備份供 Agent 使用
                     with open("pr_guidelines.txt", "w", encoding="utf-8") as f:
                         f.write(updated_guidelines)
-                st.success("✅ 記憶已成功刻入雲端！")
+                st.success("✅ 記憶已更新！")
                 st.rerun()
-            elif not db_connected:
-                st.warning("⚠️ 資料庫未連線，無法寫入。")
-            else:
-                st.warning("⚠️ 請先輸入要教導的內容喔！")
 
     # --- 3. 介面：特務裝備控制台 ---
     st.markdown("### 🎛️ 特務裝備與權限控制台")
     settings_changed = False
-    new_settings = {}
+    updated_full_settings = {}
 
     for key, config in AGENT_ROSTER.items():
-        with st.expander(f"{config['icon']} {config['role']} ({key})", expanded=False):
+        with st.expander(f"{config['icon']} {config['role']} ({key})"):
             col1, col2, col3 = st.columns(3)
             
-            current_search = config.get("needs_search", False)
-            current_guide = config.get("needs_guidelines", False)
-            current_memory = config.get("memory", False)
+            c_search = config.get("needs_search", False)
+            c_guide = config.get("needs_guidelines", False)
+            c_mem = config.get("memory", False)
 
-            toggle_search = col1.toggle("🌐 網路搜尋", value=current_search, key=f"search_{key}")
-            toggle_guide = col2.toggle("📖 閱讀教戰守則", value=current_guide, key=f"guide_{key}")
-            toggle_memory = col3.toggle("🧠 獨立記憶", value=current_memory, key=f"mem_{key}")
+            t_search = col1.toggle("🌐 搜尋", value=c_search, key=f"s_{key}")
+            t_guide = col2.toggle("📖 守則", value=c_guide, key=f"g_{key}")
+            t_mem = col3.toggle("🧠 記憶", value=c_mem, key=f"m_{key}")
 
-            new_settings[key] = {
-                "needs_search": toggle_search,
-                "needs_guidelines": toggle_guide,
-                "memory": toggle_memory
+            updated_full_settings[key] = {
+                "needs_search": t_search,
+                "needs_guidelines": t_guide,
+                "memory": t_mem
             }
 
-            if toggle_search != current_search or toggle_guide != current_guide or toggle_memory != current_memory:
+            if t_search != c_search or t_guide != c_guide or t_mem != c_mem:
                 settings_changed = True
 
     if settings_changed and db_connected:
-        with st.spinner("正在同步設定至 Google Sheets..."):
-            ws.update_acell('B2', json.dumps(new_settings, ensure_ascii=False))
-        st.success("✅ 設定已自動同步至雲端大腦！")
+        with st.spinner("同步設定至雲端..."):
+            ws.update_acell('B2', json.dumps(updated_full_settings, ensure_ascii=False))
+        st.success("✅ 設定已自動同步！")
         st.rerun()
