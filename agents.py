@@ -9,7 +9,8 @@ AGENT_ROSTER = {
         "task_desc": "分析以下這篇貼文：\n\n{post}\n\n提取核心疑問，並提供專業的市場切入點。",
         "expected_output": "一段包含最新市場動態的簡短分析報告。",
         "needs_search": True,
-        "needs_guidelines": False
+        "needs_guidelines": False,
+        "memory": True  # 👉 已開啟記憶功能
     },
     "pr_writer": {
         "icon": "✍️",
@@ -19,7 +20,8 @@ AGENT_ROSTER = {
         "task_desc": "針對該議題（若有前一份分析報告請務必參考），草擬一段 100 字以內的回覆：\n\n{post}",
         "expected_output": "一段準備好可以直接複製貼上的繁體中文留言草稿。",
         "needs_search": False,
-        "needs_guidelines": True
+        "needs_guidelines": True,
+        "memory": True  # 👉 已開啟記憶功能
     },
     "GreenBird_writer": {
         "icon": "🐦",
@@ -29,7 +31,8 @@ AGENT_ROSTER = {
         "task_desc": "針對該議題（若有前一份分析報告請務必參考），草擬一段 100 字以內的回覆：\n\n{post}",
         "expected_output": "一段準備好可以直接複製貼上社群媒體的繁體中文留言草稿。",
         "needs_search": False,
-        "needs_guidelines": True
+        "needs_guidelines": True,
+        "memory": True  # 👉 已開啟記憶功能
     },
     "comment_analyst": {
         "icon": "🕵️‍♀️",
@@ -38,8 +41,9 @@ AGENT_ROSTER = {
         "backstory": "你是一位專精於社群心理學的數據專家，曾任職於頂尖公關公司的輿情危機處理部門。你非常擅長「讀空氣」，能一眼看穿酸民的盲點，或找出群眾的集體焦慮。",
         "task_desc": "請分析以下這篇貼文以及底下的留言討論串：\n\n【貼文與留言內容】\n{post}\n\n請條列出：1. 目前留言區的主要風向與共識 2. 網友最大的痛點或疑問 3. 建議我們切入的最佳人設與戰略角度（例如：順風推廣、逆風打臉、理性科普）。",
         "expected_output": "一份簡明扼要的「留言區風向與切入戰略」分析報告。",
-        "needs_search": False, # 如果需要查證網友說的是不是真的，也可以改成 True
-        "needs_guidelines": False
+        "needs_search": False, 
+        "needs_guidelines": False,
+        "memory": True  # 👉 已開啟記憶功能
     },
     "strategic_infiltrator": {
         "icon": "🥷",
@@ -49,7 +53,8 @@ AGENT_ROSTER = {
         "task_desc": "請參考前一棒的風向分析報告，並根據我們這次的核心目的，撰寫一段回覆留言。\n\n【我們這次的最終目的】：請將我們想強調的重點（如推廣某概念、帶動某情緒）自然地融入。\n【貼文與留言內容】：\n{post}\n\n字數控制在 80 字以內，語氣必須完全符合 Threads 的生態（可適度使用 emoji，不要有機器人感）。",
         "expected_output": "一段準備好可以直接複製貼上，能達成我們戰略目的之 Threads 繁體中文留言。",
         "needs_search": False,
-        "needs_guidelines": True # 可以吃一份專門針對「滲透語氣」的教戰守則
+        "needs_guidelines": True, 
+        "memory": True  # 👉 已開啟記憶功能
     },
     "threads_radar": {
         "icon": "📡",
@@ -58,8 +63,9 @@ AGENT_ROSTER = {
         "backstory": "你是一位精通開源情報收集（OSINT）的駭客級情報員。你非常清楚社群平台有反爬蟲機制，所以你擅長利用 `site:threads.net` 這種搜尋指令，繞過平台高牆，直接從搜尋引擎抓取網友最新的真實發言。",
         "task_desc": "請閱讀使用者的指令與情報：\n\n{post}\n\n【你的專屬任務】：\n1. 提取出使用者想關注的核心「關鍵字」。\n2. 務必使用工具，並使用 `site:threads.net \"關鍵字\"` 的語法進行網路搜尋（例如：想找台積電，就搜尋 site:threads.net \"台積電\"）。\n3. 根據搜尋到的外部結果，總結目前 Threads 網友對這個議題的真實討論重點與風向。\n\n【注意】：不要憑空通靈，必須基於你搜尋回來的結果撰寫報告。",
         "expected_output": "一份「Threads 外部探測快報」，列出你用關鍵字搜到的最新 Threads 討論重點與網友情緒。",
-        "needs_search": True,  # 👉 這是關鍵！必須給他配備 Google 搜尋工具
-        "needs_guidelines": False
+        "needs_search": True,  
+        "needs_guidelines": False,
+        "memory": True  # 👉 已開啟記憶功能
     },
     "fact_checker": {
         "icon": "⚖️",
@@ -68,8 +74,9 @@ AGENT_ROSTER = {
         "backstory": "你是一位擁有多年新聞調查經驗的事實查核專家，極度理性且吹毛求疵。你不相信任何沒有數據或官方來源佐證的社群言論。你擅長從一堆情緒性的發言中挑出「可驗證的事實」，並親自去網路上找證據打臉假消息。",
         "task_desc": "請閱讀前一棒的分析報告（若有）以及以下原始情報：\n\n{post}\n\n【你的專屬任務】：\n1. 挑出上述情報中「具體可驗證的主張」（例如：某公司虧損幾千億、某政客說了某句話、某技術有致命缺陷）。\n2. 務必使用搜尋工具，尋找具公信力的新聞媒體、官方財報或權威機構的最新資料來驗證這些主張。\n3. 撰寫一份「事實查核報告」，明確指出哪些言論是「真實」、「錯誤（假消息）」或「尚無定論」，並附上你查到的真實數據與依據。\n（若情報中只是一些情緒抒發，不涉及客觀事實，請簡短說明「無須查核」即可。）",
         "expected_output": "一份條理分明的事實查核報告，標明真偽與查證依據，提供給下一棒的小編當作『彈藥』。",
-        "needs_search": True,  # 👉 關鍵：他必須要能上網 Google 找證據！
-        "needs_guidelines": False
+        "needs_search": True,  
+        "needs_guidelines": False,
+        "memory": True  # 👉 已開啟記憶功能
     }
     # 未來如果要加新員工，就直接在這裡繼續往下寫！
 }
