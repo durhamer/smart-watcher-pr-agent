@@ -108,6 +108,28 @@ with tab_main:
 # 📍 分頁 2：執行長後台管理 (權限與記憶控制)
 # ==========================================
 with tab_admin:
+    # 👇 雲端專用的資料庫連線測試儀表板 👇
+    st.markdown("### 🔌 系統狀態：雲端資料庫連線測試")
+    with st.container(border=True):
+        if st.button("🔄 點我測試 Google Sheets API 連線", use_container_width=True):
+            import gspread
+            try:
+                with st.spinner("正在打開 Streamlit 金庫拿鑰匙..."):
+                    # 🚀 改變在這裡：直接把 Secrets 轉換成 gspread 看得懂的字典格式
+                    credentials_dict = dict(st.secrets["gcp_service_account"])
+                    gc = gspread.service_account_from_dict(credentials_dict)
+                    
+                    st.info("鑰匙驗證成功！正在尋找 Google 試算表...")
+                    sh = gc.open("Smart_Watcher_DB") # 請確保你的試算表名字跟這裡一模一樣！
+                    worksheet = sh.sheet1
+                    
+                    # 嘗試寫入並讀取
+                    worksheet.update_acell('A1', '🎉 Smart Watcher 雲端系統連線成功！')
+                    val = worksheet.acell('A1').value
+                    
+                    st.success(f"✅ 連線完美通過！已成功讀取回傳值：【{val}】")
+            except Exception as e:
+                st.error(f"🚨 連線失敗，請檢查設定：\n{e}")
     st.markdown("### 🧠 企業公關教戰守則 (pr_guidelines.txt)")
     with st.container(border=True):
         guidelines_path = 'pr_guidelines.txt'
