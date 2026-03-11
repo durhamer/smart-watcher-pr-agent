@@ -68,27 +68,24 @@ def render_admin_page():
                 st.success("寫入成功！")
                 st.rerun()
 
-    # --- 區塊 3：特務裝備 ---
+    # --- 區塊 3：特務裝備權限 ---
     st.markdown("### 🎛️ 特務裝備權限")
     current_full_settings = {}
-    any_toggle_changed = False
 
+    # 先畫出所有開關
     for key, config in AGENT_ROSTER.items():
         with st.expander(f"{config['icon']} {config['role']}"):
             col1, col2, col3 = st.columns(3)
-            # 使用更唯一的 key 避免衝突
             t_s = col1.toggle("搜尋", value=config.get("needs_search", False), key=f"ts_{key}")
             t_g = col2.toggle("守則", value=config.get("needs_guidelines", False), key=f"tg_{key}")
             t_m = col3.toggle("記憶", value=config.get("memory", False), key=f"tm_{key}")
-
             current_full_settings[key] = {"needs_search": t_s, "needs_guidelines": t_g, "memory": t_m}
-            
-            if t_s != config.get("needs_search") or t_g != config.get("needs_guidelines") or t_m != config.get("memory"):
-                any_toggle_changed = True
 
-    # 🚀 關鍵修正：當開關變動時，明確調用寫入
-    if any_toggle_changed and db_connected:
-        fresh_ws = get_ws()
-        fresh_ws.update_acell('B2', json.dumps(current_full_settings, ensure_ascii=False))
-        st.toast("設定已同步雲端")
-        st.rerun()
+    # 🚀 改成手動儲存按鈕，保證 100% 寫入成功
+    if st.button("💾 儲存所有特務裝備設定", use_container_width=True):
+        if db_connected:
+            with st.spinner("設定同步中..."):
+                fresh_ws = get_ws()
+                fresh_ws.update_acell('B2', json.dumps(current_full_settings, ensure_ascii=False))
+            st.success("✅ 所有 Agent 設定已成功同步至雲端！")
+            st.rerun()
