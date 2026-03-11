@@ -2,3 +2,4 @@ streamlit
 crewai
 crewai-tools
 langchain-google-genai
+gspread==6.0.0
