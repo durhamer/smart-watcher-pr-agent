@@ -1,7 +1,8 @@
 # app.py
 import streamlit as st
+import os  # 👉 新增 os 模組來檢查檔案是否存在
 
-# 👉 引入員工名冊、核心邏輯與中央控制台 (已經把 utils 拔掉了)
+# 👉 引入員工名冊、核心邏輯與中央控制台
 from agents import AGENT_ROSTER
 from app_config import AI_MODELS
 from ai_core import evaluate_pipeline, execute_crew
@@ -28,7 +29,35 @@ combined_info = f"""
 【老闆下達的戰略目的】：\n{strategy_goal if strategy_goal else "請依據上述內容自由發揮。"}
 """
 
-# --- 3. 前端 UI：選擇 Agent ---
+# --- 3. 前端 UI：執行長辦公室 (長期記憶寫入區) ---
+st.markdown("### 🧠 novadata 執行長辦公室：特務教戰守則")
+with st.expander("📝 檢視與寫入長期記憶 (pr_guidelines.txt)", expanded=False):
+    guidelines_path = 'pr_guidelines.txt'
+    
+    # 讀取並顯示目前的記憶
+    if os.path.exists(guidelines_path):
+        with open(guidelines_path, 'r', encoding='utf-8') as f:
+            current_guidelines = f.read()
+        st.text_area("📄 目前已儲存的教戰守則：", value=current_guidelines, height=150, disabled=True)
+    else:
+        st.info("目前還沒有建立任何教戰守則，檔案將會在第一次寫入時自動建立。")
+
+    # 寫入新記憶
+    new_rule = st.text_area("你想教 AI 團隊什麼新規則？", placeholder="例如：以後只要提到特定對手，都必須維持中立偏悲觀的語氣；絕對不能使用『笑死』這個詞...")
+    
+    if st.button("💾 永久寫入特務大腦"):
+        if new_rule:
+            # 使用 append 模式 (a) 把新規則加到檔案最後面
+            with open(guidelines_path, "a", encoding="utf-8") as f:
+                f.write(f"\n- 【執行長最新指令】：{new_rule}")
+            st.success("✅ 記憶已成功刻入！未來的任務特務都會遵守此規則。")
+            st.rerun()  # 🚀 自動刷新網頁，讓上方的預覽框立刻顯示剛剛寫入的新規則！
+        else:
+            st.warning("請先輸入要教導的內容喔！")
+
+st.markdown("---")
+
+# --- 4. 前端 UI：選擇 Agent ---
 st.markdown("### 👥 選擇與排序出任務的智囊團成員")
 agent_options = {f"{config['icon']} {config['role']}": key for key, config in AGENT_ROSTER.items()}
 # 👉 預設為空陣列，讓畫面保持乾淨
@@ -46,7 +75,7 @@ else:
 
 st.markdown("---")
 
-# --- 4. 執行核心邏輯 ---
+# --- 5. 執行核心邏輯 ---
 col_check, col_run = st.columns(2)
 
 with col_check:
