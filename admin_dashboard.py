@@ -1,111 +1,94 @@
-# admin_dashboard.py
+# admin_dashboard.py 終極穩定版
 import streamlit as st
 import json
 import gspread
 from agents import AGENT_ROSTER
 
 def render_admin_page():
-    # --- 🏗️ 區塊 A：雲端資料庫狀態與強制同步 ---
     st.markdown("### 🔌 系統狀態：雲端資料庫控制台")
     
-    db_connected = False
-    ws = None
-    cloud_guidelines = ""
-
-    # 定義一個共用的連線函數
-    def get_gsheet_connection():
+    # --- 內部連線工具 ---
+    def get_ws():
         try:
-            credentials_dict = dict(st.secrets["gcp_service_account"])
-            gc = gspread.service_account_from_dict(credentials_dict)
-            sh = gc.open("Smart_Watcher_DB")
-            return sh.sheet1
+            creds = dict(st.secrets["gcp_service_account"])
+            gc = gspread.service_account_from_dict(creds)
+            return gc.open("Smart_Watcher_DB").sheet1
         except Exception as e:
-            st.error(f"❌ 無法連線至 Google Sheets: {e}")
+            st.error(f"連線失敗: {e}")
             return None
 
-    # 1. 建立「手動強制初始化/同步」按鈕
-    col_status, col_sync = st.columns([2, 1])
-    
-    with col_sync:
-        if st.button("🔄 強制同步雲端資料庫", use_container_width=True):
-            ws = get_gsheet_connection()
-            if ws:
-                with st.spinner("正在強制寫入標題與格式..."):
-                    # 暴力寫入標題與預設值
-                    ws.update_acell('A1', 'Guidelines')
-                    ws.update_acell('B1', 'Settings')
-                    # 檢查 B2 是否有設定，沒有就補 {}
-                    if not ws.acell('B2').value:
-                        ws.update_acell('B2', '{}')
-                    st.toast("🚀 雲端資料庫已強制初始化並同步！")
-                    st.rerun()
+    # 初始化連線
+    ws = get_ws()
+    db_connected = ws is not None
+    cloud_guidelines = ""
+    cloud_settings = {}
 
-    # 2. 啟動時自動拉取最新資料 (保持原本的唯讀讀取邏輯)
-    ws = get_gsheet_connection()
-    if ws:
+    if db_connected:
         try:
-            # 讀取雲端資料
-            cloud_settings_raw = ws.acell('B2').value or "{}"
-            cloud_settings = json.loads(cloud_settings_raw)
+            # 強制讀取最新值
             cloud_guidelines = ws.acell('A2').value or ""
+            settings_raw = ws.acell('B2').value or "{}"
+            cloud_settings = json.loads(settings_raw)
             
-            # 同步至本地 AGENT_ROSTER
-            for key, settings in cloud_settings.items():
-                if key in AGENT_ROSTER:
-                    AGENT_ROSTER[key].update(settings)
-            
-            db_connected = True
-            st.success("✅ 目前與雲端資料同步中")
-        except Exception as e:
-            st.warning(f"⚠️ 資料解析中：{e}")
+            # 同步到記憶體
+            for k, v in cloud_settings.items():
+                if k in AGENT_ROSTER: AGENT_ROSTER[k].update(v)
+            st.success("✅ 與雲端資料同步中")
+        except:
+            st.warning("⚠️ 雲端資料格式初始化中...")
+
+    # --- 區塊 1：手動同步按鈕 ---
+    if st.button("🔄 重新連線並強制初始化標題"):
+        ws = get_ws()
+        if ws:
+            ws.update_acell('A1', 'Guidelines')
+            ws.update_acell('B1', 'Settings')
+            if not ws.acell('B2').value: ws.update_acell('B2', '{}')
+            st.toast("同步成功！")
+            st.rerun()
 
     st.markdown("---")
 
-    # --- 🏗️ 區塊 B：教戰守則管理 ---
+    # --- 區塊 2：教戰守則 ---
     st.markdown("### 🧠 企業公關教戰守則")
     with st.container(border=True):
-        st.text_area("📄 雲端目前儲存的守則：", value=cloud_guidelines, height=150, disabled=True)
-        new_rule = st.text_area("你想教 AI 團隊什麼新規則？", placeholder="輸入後點擊下方按鈕存入雲端...")
+        st.text_area("📄 雲端儲存內容：", value=cloud_guidelines, height=100, disabled=True)
+        new_rule = st.text_area("寫入新指令：", key="new_rule_input")
         
-        if st.button("💾 永久寫入雲端大腦", type="primary"):
+        if st.button("💾 執行寫入"):
             if db_connected and new_rule:
-                with st.spinner("正在上傳至 Google Sheets..."):
-                    updated_guidelines = cloud_guidelines + f"\n- 【執行長最新指令】：{new_rule}"
-                    ws.update_acell('A2', updated_guidelines)
-                    # 同步更新本機暫存檔
+                with st.spinner("寫入中..."):
+                    # 🚀 關鍵修正：重新取得 ws 確保連線未逾時
+                    fresh_ws = get_ws()
+                    updated_text = cloud_guidelines + f"\n- {new_rule}"
+                    fresh_ws.update_acell('A2', updated_text)
+                    # 同步本地
                     with open("pr_guidelines.txt", "w", encoding="utf-8") as f:
-                        f.write(updated_guidelines)
-                st.success("✅ 雲端守則已更新！")
+                        f.write(updated_text)
+                st.success("寫入成功！")
                 st.rerun()
 
-    # --- 🏗️ 區塊 C：特務裝備控制台 ---
-    st.markdown("### 🎛️ 特務裝備權限 (自動同步)")
-    settings_changed = False
-    updated_full_settings = {}
+    # --- 區塊 3：特務裝備 ---
+    st.markdown("### 🎛️ 特務裝備權限")
+    current_full_settings = {}
+    any_toggle_changed = False
 
     for key, config in AGENT_ROSTER.items():
-        with st.expander(f"{config['icon']} {config['role']} ({key})"):
+        with st.expander(f"{config['icon']} {config['role']}"):
             col1, col2, col3 = st.columns(3)
+            # 使用更唯一的 key 避免衝突
+            t_s = col1.toggle("搜尋", value=config.get("needs_search", False), key=f"ts_{key}")
+            t_g = col2.toggle("守則", value=config.get("needs_guidelines", False), key=f"tg_{key}")
+            t_m = col3.toggle("記憶", value=config.get("memory", False), key=f"tm_{key}")
+
+            current_full_settings[key] = {"needs_search": t_s, "needs_guidelines": t_g, "memory": t_m}
             
-            c_search = config.get("needs_search", False)
-            c_guide = config.get("needs_guidelines", False)
-            c_mem = config.get("memory", False)
+            if t_s != config.get("needs_search") or t_g != config.get("needs_guidelines") or t_m != config.get("memory"):
+                any_toggle_changed = True
 
-            t_search = col1.toggle("🌐 搜尋", value=c_search, key=f"s_{key}")
-            t_guide = col2.toggle("📖 守則", value=c_guide, key=f"g_{key}")
-            t_mem = col3.toggle("🧠 記憶", value=c_mem, key=f"m_{key}")
-
-            updated_full_settings[key] = {
-                "needs_search": t_search,
-                "needs_guidelines": t_guide,
-                "memory": t_mem
-            }
-
-            if t_search != c_search or t_guide != c_guide or t_mem != c_mem:
-                settings_changed = True
-
-    if settings_changed and db_connected:
-        with st.spinner("同步設定中..."):
-            ws.update_acell('B2', json.dumps(updated_full_settings, ensure_ascii=False))
-        st.success("✅ 裝備設定已同步至雲端！")
+    # 🚀 關鍵修正：當開關變動時，明確調用寫入
+    if any_toggle_changed and db_connected:
+        fresh_ws = get_ws()
+        fresh_ws.update_acell('B2', json.dumps(current_full_settings, ensure_ascii=False))
+        st.toast("設定已同步雲端")
         st.rerun()
