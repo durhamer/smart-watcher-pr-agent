@@ -75,20 +75,35 @@ with tab_main:
                         st.error(f"🚨 錯誤：{str(e)}")
 
     with col_run:
-        if st.button("🚀 確認無誤，正式啟動團隊！", type="primary", use_container_width=True):
+        if st.button("🚀 正式啟動團隊！", type="primary", use_container_width=True):
             api_key = st.secrets.get("GEMINI_API_KEY")
             serper_api_key = st.secrets.get("SERPER_API_KEY")
-            if api_key and serper_api_key and selected_agent_keys:
-                with st.spinner("🕵️‍♂️ 特務團隊正在後台秘密查證與撰寫中，這可能需要 1~2 分鐘，請耐心稍候..."):
-                    try:
-                        result_text, metrics = execute_crew(combined_info, selected_agent_keys, api_key, serper_api_key)
-                        st.success("✨ 任務完成！")
-                        st.subheader("📝 最終產出：")
-                        st.write(result_text)
-                        st.markdown("---")
-                        col1, col2, col3 = st.columns(3)
-                        col1.metric("輸入 Token", metrics["prompt_tokens"])
-                        col2.metric("輸出 Token", metrics["completion_tokens"])
-                        col3.metric("總消耗", metrics["total_tokens"])
-                    except Exception as e:
-                        st.error(f"🚨 錯誤：{str(e)}")
+            if api_key and selected_agent_keys:
+                with st.spinner("團隊執行中..."):
+                    result, metrics = execute_crew(combined_info, selected_agent_keys, api_key, serper_api_key)
+                    st.success("✨ 任務完成！")
+                    
+                    # 顯示最終產出
+                    st.markdown("### 📝 最終產出：")
+                    st.write(result)
+                    
+                    st.markdown("---")
+                    
+                    # 💰 擷取 Token 數量
+                    p_tokens = metrics.get("prompt_tokens", 0)
+                    c_tokens = metrics.get("completion_tokens", 0)
+                    t_tokens = metrics.get("total_tokens", 0)
+                    
+                    # 🧮 計算估算成本 (假設使用 Flash 輕量級距)
+                    # 輸入：每百萬 Token $0.10 USD / 輸出：每百萬 Token $0.40 USD
+                    est_cost_usd = (p_tokens / 1_000_000 * 0.10) + (c_tokens / 1_000_000 * 0.40)
+                    
+                    # 📊 顯示升級版數據面板
+                    col1, col2, col3, col4 = st.columns(4)
+                    col1.metric("輸入 Token", f"{p_tokens:,}")
+                    col2.metric("輸出 Token", f"{c_tokens:,}")
+                    col3.metric("總消耗", f"{t_tokens:,}")
+                    col4.metric("💰 估算花費", f"${est_cost_usd:.5f}")
+                    
+                    # ⚠️ 加上專屬警語
+                    st.caption("⚠️ 警語：以上為基於 Flash 輕量模型的估算成本，實際上可能略有出入。")
