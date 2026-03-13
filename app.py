@@ -95,8 +95,8 @@ with tab_main:
                     t_tokens = metrics.get("total_tokens", 0)
                     
                     # 🧮 計算估算成本 (假設使用 Flash 輕量級距)
-                    # 輸入：每百萬 Token $0.10 USD / 輸出：每百萬 Token $0.40 USD
-                    est_cost_usd = (p_tokens / 1_000_000 * 0.10) + (c_tokens / 1_000_000 * 0.40)
+                    # 輸入：每百萬 Token $0.30 USD / 輸出：每百萬 Token $2.5 USD
+                    est_cost_usd = (p_tokens / 1_000_000 * 0.30) + (c_tokens / 1_000_000 * 2.50)
                     
                    # 📊 顯示升級版數據面板 (微調欄位比例，讓最後一欄更寬)
                     col1, col2, col3, col4 = st.columns([1, 1, 1, 1.3])
