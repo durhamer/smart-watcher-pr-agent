@@ -103,7 +103,9 @@ with tab_main:
                     col1.metric("輸入 Token", f"{p_tokens:,}")
                     col2.metric("輸出 Token", f"{c_tokens:,}")
                     col3.metric("總消耗", f"{t_tokens:,}")
-                    col4.metric("💰 估算花費", f"${est_cost_usd:.5f}")
+                    
+                    # 🚀 在這裡加上了明確的「美金」單位
+                    col4.metric("💰 估算花費", f"${est_cost_usd:.5f} 美金")
                     
                     # ⚠️ 加上專屬警語
                     st.caption("⚠️ 警語：以上為基於 Flash 輕量模型的估算成本，實際上可能略有出入。")
