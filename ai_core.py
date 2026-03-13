@@ -76,7 +76,13 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
     
     # 初始化工具
     guidelines_tool = FileReadTool(file_path=guidelines_file)
-    search_tool = SerperDevTool(search_parameters={"num": 3})
+    # 新版：強制只搜尋「過去一週 (qdr:w)」的結果，確保是最新時事！
+    # 如果你想更極端，可以改成 "qdr:d" (過去 24 小時)
+    search_tool = SerperDevTool(search_parameters={
+        "num": 4, 
+        "tbs": "qdr:w" 
+    })
+
 
     active_agents = []
     active_tasks = []
