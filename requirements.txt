@@ -3,3 +3,4 @@ crewai
 crewai-tools
 langchain-google-genai
 gspread==6.0.0
+google-generativeai  # 🚀 幫記憶中樞補上這個原廠套件
