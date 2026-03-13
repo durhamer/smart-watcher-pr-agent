@@ -49,24 +49,34 @@ def render_admin_page():
 
     st.markdown("---")
 
-    # --- 區塊 2：教戰守則 ---
+    # --- 區塊 2：教戰守則 (進化為直接編輯覆寫模式) ---
     st.markdown("### 🧠 企業公關教戰守則")
     with st.container(border=True):
-        st.text_area("📄 雲端儲存內容：", value=cloud_guidelines, height=100, disabled=True)
-        new_rule = st.text_area("寫入新指令：", key="new_rule_input")
+        st.info("💡 編輯器提示：你可以直接在這裡修改、刪除或新增守則。按下儲存後，將會「完全覆蓋」雲端的舊資料。")
         
-        if st.button("💾 執行寫入"):
-            if db_connected and new_rule:
-                with st.spinner("寫入中..."):
-                    # 🚀 關鍵修正：重新取得 ws 確保連線未逾時
+        # 把原本「唯讀」的框框，改成直接讓你可以編輯的 text_area
+        # 並且把高度拉高，方便你編輯長篇大論
+        edited_guidelines = st.text_area(
+            "📄 雲端教戰守則編輯器：", 
+            value=cloud_guidelines, 
+            height=300
+        )
+        
+        if st.button("💾 完全覆寫雲端大腦", type="primary"):
+            if db_connected:
+                with st.spinner("正在覆寫 Google Sheets..."):
                     fresh_ws = get_ws()
-                    updated_text = cloud_guidelines + f"\n- {new_rule}"
-                    fresh_ws.update_acell('A2', updated_text)
-                    # 同步本地
+                    # 🚀 直接寫入編輯器裡的最新內容，不再累加！
+                    fresh_ws.update_acell('A2', edited_guidelines)
+                    
+                    # 同步更新本機暫存檔
                     with open("pr_guidelines.txt", "w", encoding="utf-8") as f:
-                        f.write(updated_text)
-                st.success("寫入成功！")
+                        f.write(edited_guidelines)
+                        
+                st.success("✅ 雲端守則已成功覆寫更新！")
                 st.rerun()
+            else:
+                st.error("⚠️ 資料庫未連線")
 
     # --- 區塊 3：特務裝備權限 ---
     st.markdown("### 🎛️ 特務裝備權限")
