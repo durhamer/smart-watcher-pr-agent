@@ -98,14 +98,15 @@ with tab_main:
                     # 輸入：每百萬 Token $0.10 USD / 輸出：每百萬 Token $0.40 USD
                     est_cost_usd = (p_tokens / 1_000_000 * 0.10) + (c_tokens / 1_000_000 * 0.40)
                     
-                    # 📊 顯示升級版數據面板
-                    col1, col2, col3, col4 = st.columns(4)
+                   # 📊 顯示升級版數據面板 (微調欄位比例，讓最後一欄更寬)
+                    col1, col2, col3, col4 = st.columns([1, 1, 1, 1.3])
+                    
                     col1.metric("輸入 Token", f"{p_tokens:,}")
                     col2.metric("輸出 Token", f"{c_tokens:,}")
                     col3.metric("總消耗", f"{t_tokens:,}")
                     
-                    # 🚀 在這裡加上了明確的「美金」單位
-                    col4.metric("💰 估算花費", f"${est_cost_usd:.5f} 美金")
+                    # 🚀 把「美金」移到標題，並取到小數點後 4 位，保持畫面俐落
+                    col4.metric("💰 估算花費 (美金)", f"${est_cost_usd:.4f}")
                     
                     # ⚠️ 加上專屬警語
-                    st.caption("⚠️ 警語：以上為基於 Flash 輕量模型的估算成本，實際上可能略有出入。")
+                    st.caption("⚠️ 警語：以上為基於 Flash 輕量模型的估算成本，實際可能略有出入。")
