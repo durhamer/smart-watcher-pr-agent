@@ -118,7 +118,7 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
         process=Process.sequential, # 按順序執行
         memory=True,  
         embedder={    
-            "provider": "google",
+            "provider": "google-generativeai", # 🚀 關鍵修正：從 'google' 改成這個
             "config": {
                 "model": "models/embedding-001",
                 "api_key": api_key
