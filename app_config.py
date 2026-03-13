@@ -10,5 +10,5 @@ class AI_MODELS:
     
     # 2. 團隊主力大腦：負責實際執行 CrewAI 任務的小編與查核員
     # 特性：需要支援外部工具呼叫，注意 CrewAI 呼叫 Gemini 的字串前綴
-    CREW_MAIN_MODEL = "gemini/gemini-2.5-flash-lite"
+    CREW_MAIN_MODEL = "gemini/gemini-2.5-flash"
     CREW_TEMP = 0.6  # 稍微高一點，讓小編的回覆比較生動自然
