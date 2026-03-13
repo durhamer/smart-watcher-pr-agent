@@ -80,7 +80,7 @@ def execute_crew(user_post, selected_agent_keys, api_key, serper_api_key):
     # 如果你想更極端，可以改成 "qdr:d" (過去 24 小時)
     search_tool = SerperDevTool(search_parameters={
         "num": 4, 
-        "tbs": "qdr:w" 
+        "tbs": "qdr:d" 
     })
 
 
